@@ -5,14 +5,23 @@ import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/debate_room.dart';
 
-class DebateStatusBadge extends StatelessWidget {
-  const DebateStatusBadge({required this.status, super.key});
+class DebateLabel extends StatelessWidget {
+  const DebateLabel({required this.stage, super.key});
 
-  final DebateStatus status;
+  factory DebateLabel.fromStatus({required DebateStatus status, Key? key}) {
+    return DebateLabel(
+      key: key,
+      stage: status == DebateStatus.live
+          ? DebateLabelStage.live
+          : DebateLabelStage.upcoming,
+    );
+  }
+
+  final DebateLabelStage stage;
 
   @override
   Widget build(BuildContext context) {
-    final isLive = status == DebateStatus.live;
+    final isLive = stage == DebateLabelStage.live;
     final foreground = isLive ? AppColors.accent : AppColors.textMuted;
 
     return Container(
@@ -32,7 +41,7 @@ class DebateStatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 2),
           Text(
-            status.label,
+            isLive ? '토론 중' : '준비 중',
             style: TextStyle(
               color: foreground,
               fontSize: 13,
@@ -46,3 +55,9 @@ class DebateStatusBadge extends StatelessWidget {
     );
   }
 }
+
+class DebateStatusBadge extends DebateLabel {
+  const DebateStatusBadge({required super.stage, super.key});
+}
+
+enum DebateLabelStage { live, upcoming }

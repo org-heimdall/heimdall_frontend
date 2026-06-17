@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/debate_room.dart';
 import 'debate_status_badge.dart';
@@ -37,7 +39,7 @@ class DebateRoomCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DebateStatusBadge(status: room.status),
+                  DebateLabel.fromStatus(status: room.status),
                   if (room.status == DebateStatus.live)
                     ParticipantStack(participants: room.participants),
                 ],
@@ -74,15 +76,30 @@ class DebateRoomCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              '토론 진행 시간 : ${room.elapsedMinutes == 0 ? '-' : '${room.elapsedMinutes}분'}',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w400,
-                letterSpacing: -0.5,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SvgPicture.asset(
+                  AppAssets.timerIcon,
+                  width: room.status == DebateStatus.live ? 14 : 12,
+                  height: room.status == DebateStatus.live ? 14 : 14,
+                  colorFilter: const ColorFilter.mode(
+                    AppColors.textMuted,
+                    BlendMode.srcIn,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${room.elapsedMinutes}분',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                    height: 1.35,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

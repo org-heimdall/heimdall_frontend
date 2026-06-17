@@ -49,7 +49,7 @@ class DebateDetailScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      DebateStatusBadge(status: room.status),
+                      DebateLabel.fromStatus(status: room.status),
                       ParticipantStack(participants: room.participants),
                     ],
                   ),
