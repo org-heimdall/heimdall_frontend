@@ -3,25 +3,28 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/debate_room.dart';
+import '../../domain/entities/community.dart';
 
-class DebateLabel extends StatelessWidget {
-  const DebateLabel({required this.stage, super.key});
+class CommunityStatusLabel extends StatelessWidget {
+  const CommunityStatusLabel({required this.stage, super.key});
 
-  factory DebateLabel.fromStatus({required DebateStatus status, Key? key}) {
-    return DebateLabel(
+  factory CommunityStatusLabel.fromStatus({
+    required CommunityStatus status,
+    Key? key,
+  }) {
+    return CommunityStatusLabel(
       key: key,
-      stage: status == DebateStatus.live
-          ? DebateLabelStage.live
-          : DebateLabelStage.upcoming,
+      stage: status == CommunityStatus.live
+          ? CommunityStatusLabelStage.live
+          : CommunityStatusLabelStage.upcoming,
     );
   }
 
-  final DebateLabelStage stage;
+  final CommunityStatusLabelStage stage;
 
   @override
   Widget build(BuildContext context) {
-    final isLive = stage == DebateLabelStage.live;
+    final isLive = stage == CommunityStatusLabelStage.live;
     final foreground = isLive ? AppColors.accent : AppColors.textMuted;
 
     return Container(
@@ -41,7 +44,7 @@ class DebateLabel extends StatelessWidget {
           ),
           const SizedBox(width: 2),
           Text(
-            isLive ? '토론 중' : '준비 중',
+            isLive ? '디베이트 중' : '모집 중',
             style: TextStyle(
               color: foreground,
               fontSize: 13,
@@ -56,8 +59,8 @@ class DebateLabel extends StatelessWidget {
   }
 }
 
-class DebateStatusBadge extends DebateLabel {
-  const DebateStatusBadge({required super.stage, super.key});
+class CommunityStatusBadge extends CommunityStatusLabel {
+  const CommunityStatusBadge({required super.stage, super.key});
 }
 
-enum DebateLabelStage { live, upcoming }
+enum CommunityStatusLabelStage { live, upcoming }

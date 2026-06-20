@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/entities/debate_room.dart';
+import '../../domain/entities/community.dart';
 import 'debate_tabs.dart';
 
-class DebateCategoryChip extends StatelessWidget {
-  const DebateCategoryChip({
+class CommunityCategoryChip extends StatelessWidget {
+  const CommunityCategoryChip({
     required this.category,
     required this.selected,
     required this.onTap,
     super.key,
   });
 
-  final DebateCategory category;
+  final CommunityCategory category;
   final bool selected;
   final VoidCallback onTap;
 

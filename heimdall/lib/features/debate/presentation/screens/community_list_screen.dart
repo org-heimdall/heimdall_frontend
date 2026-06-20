@@ -3,26 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/debate_room.dart';
-import '../providers/debate_providers.dart';
-import '../widgets/category_chip.dart';
-import '../widgets/debate_list_header.dart';
-import '../widgets/debate_room_card.dart';
+import '../../domain/entities/community.dart';
+import '../providers/community_providers.dart';
+import '../widgets/community_category_chip.dart';
+import '../widgets/community_list_header.dart';
+import '../widgets/community_card.dart';
 
-class DebateListScreen extends ConsumerStatefulWidget {
-  const DebateListScreen({super.key});
+class CommunityListScreen extends ConsumerStatefulWidget {
+  const CommunityListScreen({super.key});
 
   @override
-  ConsumerState<DebateListScreen> createState() => _DebateListScreenState();
+  ConsumerState<CommunityListScreen> createState() =>
+      _CommunityListScreenState();
 }
 
-class _DebateListScreenState extends ConsumerState<DebateListScreen> {
+class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
   bool _isSearching = false;
 
   @override
   Widget build(BuildContext context) {
-    final filter = ref.watch(debateFilterProvider);
-    final rooms = ref.watch(debateRoomsProvider);
+    final filter = ref.watch(communityFilterProvider);
+    final rooms = ref.watch(communitiesProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -36,13 +37,13 @@ class _DebateListScreenState extends ConsumerState<DebateListScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        DebateListHeader(
+                        CommunityListHeader(
                           isSearching: _isSearching,
                           onSearchTap: () =>
                               setState(() => _isSearching = !_isSearching),
                           onQueryChanged: (value) {
                             ref
-                                .read(debateFilterProvider.notifier)
+                                .read(communityFilterProvider.notifier)
                                 .setQuery(value);
                           },
                         ),
@@ -52,17 +53,17 @@ class _DebateListScreenState extends ConsumerState<DebateListScreen> {
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             scrollDirection: Axis.horizontal,
-                            itemCount: DebateCategory.values.length,
+                            itemCount: CommunityCategory.values.length,
                             separatorBuilder: (context, index) =>
                                 const SizedBox(width: 12),
                             itemBuilder: (context, index) {
-                              final category = DebateCategory.values[index];
-                              return DebateCategoryChip(
+                              final category = CommunityCategory.values[index];
+                              return CommunityCategoryChip(
                                 category: category,
                                 selected: category == filter.category,
                                 onTap: () {
                                   ref
-                                      .read(debateFilterProvider.notifier)
+                                      .read(communityFilterProvider.notifier)
                                       .setCategory(category);
                                 },
                               );
@@ -115,7 +116,7 @@ class _DebateListScreenState extends ConsumerState<DebateListScreen> {
                     hasScrollBody: false,
                     child: Center(
                       child: Text(
-                        '조건에 맞는 토론방이 없습니다.',
+                        '조건에 맞는 커뮤니티가 없습니다.',
                         style: TextStyle(color: AppColors.textMuted),
                       ),
                     ),
@@ -128,10 +129,11 @@ class _DebateListScreenState extends ConsumerState<DebateListScreen> {
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 16),
                       itemBuilder: (context, index) {
-                        final room = rooms[index];
-                        return DebateRoomCard(
-                          room: room,
-                          onTap: () => context.push('/debates/${room.id}'),
+                        final community = rooms[index];
+                        return CommunityCard(
+                          community: community,
+                          onTap: () =>
+                              context.push('/communities/${community.id}'),
                         );
                       },
                     ),
@@ -163,12 +165,12 @@ class _DebateListScreenState extends ConsumerState<DebateListScreen> {
         height: 64,
         child: FloatingActionButton(
           onPressed: () async {
-            await context.push('/debates/new');
+            await context.push('/communities/new');
           },
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.textPrimary,
           shape: const CircleBorder(),
-          tooltip: '토론방 생성',
+          tooltip: '커뮤니티 생성',
           child: const Icon(Icons.add_rounded, size: 38),
         ),
       ),

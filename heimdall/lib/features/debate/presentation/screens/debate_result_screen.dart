@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/debate_result.dart';
-import '../../domain/entities/debate_room.dart';
+import '../../domain/entities/community.dart';
 import '../widgets/debate_result_section.dart';
 import '../widgets/heimdall_card.dart';
 import '../widgets/heimdall_logo.dart';
 
 class DebateResultScreen extends StatelessWidget {
   const DebateResultScreen({
-    required this.room,
+    required this.community,
     required this.result,
     super.key,
   });
 
-  final DebateRoom room;
+  final Community community;
   final DebateResult result;
 
   @override
@@ -58,7 +58,7 @@ class DebateResultScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    room.title,
+                    community.title,
                     style: const TextStyle(
                       color: AppColors.textMuted,
                       height: 1.45,

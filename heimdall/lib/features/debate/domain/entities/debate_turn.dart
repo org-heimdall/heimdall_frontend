@@ -1,4 +1,4 @@
-import 'debate_room.dart';
+import 'community.dart';
 
 enum DebateStage {
   opening('입론', 60),

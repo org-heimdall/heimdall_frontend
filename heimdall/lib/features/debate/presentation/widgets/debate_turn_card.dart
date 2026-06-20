@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/debate_room.dart';
+import '../../domain/entities/community.dart';
 import '../../domain/entities/debate_turn.dart';
 import 'heimdall_card.dart';
 

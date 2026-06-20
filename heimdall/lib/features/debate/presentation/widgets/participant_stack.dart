@@ -2,29 +2,29 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/debate_room.dart';
+import '../../domain/entities/community.dart';
 
 class ParticipantStack extends StatelessWidget {
-  const ParticipantStack({required this.participants, super.key});
+  const ParticipantStack({required this.activeDebaters, super.key});
 
-  final List<DebateParticipant> participants;
+  final List<Debater> activeDebaters;
 
   @override
   Widget build(BuildContext context) {
-    if (participants.isEmpty) {
+    if (activeDebaters.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return SizedBox(
-      width: participants.length == 1 ? 28 : 44,
+      width: activeDebaters.length == 1 ? 28 : 44,
       height: 28,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (var i = 0; i < participants.length.clamp(0, 2); i++)
+          for (var i = 0; i < activeDebaters.length.clamp(0, 2); i++)
             Positioned(
               left: i * 16,
-              child: _Avatar(participant: participants[i]),
+              child: _Avatar(participant: activeDebaters[i]),
             ),
         ],
       ),
@@ -35,7 +35,7 @@ class ParticipantStack extends StatelessWidget {
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.participant});
 
-  final DebateParticipant participant;
+  final Debater participant;
 
   @override
   Widget build(BuildContext context) {

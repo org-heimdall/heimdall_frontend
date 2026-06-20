@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'heimdall_logo.dart';
 
-class DebateListHeader extends StatelessWidget {
-  const DebateListHeader({
+class CommunityListHeader extends StatelessWidget {
+  const CommunityListHeader({
     required this.isSearching,
     required this.onSearchTap,
     required this.onQueryChanged,
@@ -48,7 +48,7 @@ class DebateListHeader extends StatelessWidget {
                       onChanged: onQueryChanged,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
-                        hintText: '토론 주제나 제목 검색',
+                        hintText: '커뮤니티 주제나 제목 검색',
                         prefixIcon: Icon(
                           Icons.search_rounded,
                           color: AppColors.textMuted,

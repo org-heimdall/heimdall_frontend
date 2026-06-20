@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../domain/entities/debate_room.dart';
+import '../../domain/entities/community.dart';
 import '../../domain/entities/debate_turn.dart';
-import '../providers/debate_providers.dart';
+import '../providers/community_providers.dart';
 import '../widgets/debate_message_input.dart';
 import '../widgets/debate_turn_card.dart';
 import '../widgets/heimdall_logo.dart';
 
 class DebateSessionScreen extends ConsumerStatefulWidget {
-  const DebateSessionScreen({required this.room, super.key});
+  const DebateSessionScreen({required this.community, super.key});
 
-  final DebateRoom room;
+  final Community community;
 
   @override
   ConsumerState<DebateSessionScreen> createState() =>
@@ -28,7 +28,7 @@ class _DebateSessionScreenState extends ConsumerState<DebateSessionScreen> {
   @override
   void initState() {
     super.initState();
-    _turns = ref.read(debateRepositoryProvider).getTurns(widget.room);
+    _turns = ref.read(communityRepositoryProvider).getTurns(widget.community);
   }
 
   @override
@@ -43,13 +43,14 @@ class _DebateSessionScreenState extends ConsumerState<DebateSessionScreen> {
       appBar: AppBar(
         leading: const HeimdallBackButton(),
         title: Text(
-          widget.room.title,
+          widget.community.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           TextButton(
-            onPressed: () => context.go('/debates/${widget.room.id}/result'),
+            onPressed: () =>
+                context.go('/communities/${widget.community.id}/debate/result'),
             child: const Text('종료'),
           ),
         ],
