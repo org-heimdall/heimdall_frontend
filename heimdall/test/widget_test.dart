@@ -31,15 +31,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('커뮤니티 생성'), findsOneWidget);
-    expect(find.text('커뮤니티 테마 *', findRichText: true), findsOneWidget);
-    expect(find.text('커뮤니티 주제 *', findRichText: true), findsOneWidget);
-    expect(find.text('커뮤니티 설명'), findsOneWidget);
+    expect(find.text('토론 테마 *', findRichText: true), findsOneWidget);
+    expect(find.text('토론 주제 *', findRichText: true), findsOneWidget);
+    expect(find.text('토론 설명'), findsOneWidget);
     expect(find.text('커뮤니티 생성하기'), findsOneWidget);
 
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
 
-    expect(find.text('디베이트 라운드 개수 *', findRichText: true), findsOneWidget);
+    expect(find.text('토론 라운드 개수 *', findRichText: true), findsOneWidget);
 
     await tester.drag(find.byType(ListView), const Offset(0, -700));
     await tester.pumpAndSettle();

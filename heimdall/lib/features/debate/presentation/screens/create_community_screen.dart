@@ -66,7 +66,7 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _RequiredSectionLabel('커뮤니티 테마'),
+                    const _RequiredSectionLabel('토론 테마'),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 12,
@@ -88,21 +88,21 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
                     const SizedBox(height: 64),
                     HeimdallLabeledTextField(
                       controller: _topicController,
-                      label: '커뮤니티 주제 *',
-                      hintText: '커뮤니티 주제를 작성해주세요.',
-                      validator: _required('커뮤니티 주제를 입력하세요.'),
+                      label: '토론 주제 *',
+                      hintText: '토론하고자 하는 주제를 작성해주세요.',
+                      validator: _required('토론 주제를 입력하세요.'),
                     ),
                     const SizedBox(height: 64),
                     HeimdallLabeledTextField(
                       controller: _descriptionController,
-                      label: '커뮤니티 설명',
-                      hintText: '커뮤니티 설명을 작성해주세요.',
+                      label: '토론 설명',
+                      hintText: '토론 설명을 작성해주세요.',
                     ),
                     const SizedBox(height: 64),
-                    const _RequiredSectionLabel('디베이트 라운드 개수'),
+                    const _RequiredSectionLabel('토론 라운드 개수'),
                     const SizedBox(height: 8),
                     const Text(
-                      '디베이터의 모든 턴이 끝나면 하나의 라운드가 완료됩니다.\n각 턴은 3분 동안 진행됩니다.',
+                      '참여자의 모든 턴이 끝나면 하나의 라운드가 완료됩니다.\n각 턴은 3분 동안 진행됩니다.',
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 16,
@@ -127,7 +127,7 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
                     HeimdallLabeledTextField(
                       controller: _claimController,
                       label: '호스트 주장 *',
-                      hintText: '커뮤니티 주제에 대한 호스트 주장을 한 줄 요약해주세요.',
+                      hintText: '토론 주제에 대한 호스트 주장을 한 줄 요약해주세요.',
                       validator: _required('호스트 주장을 입력하세요.'),
                     ),
                     const SizedBox(height: 64),

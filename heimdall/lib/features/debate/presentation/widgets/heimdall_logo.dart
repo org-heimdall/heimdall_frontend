@@ -13,8 +13,8 @@ class HeimdallLogo extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: SvgPicture.asset(
         AppAssets.heimdallLogo,
-        width: 120,
-        height: 32,
+        width: 169,
+        height: 24,
         fit: BoxFit.contain,
       ),
     );

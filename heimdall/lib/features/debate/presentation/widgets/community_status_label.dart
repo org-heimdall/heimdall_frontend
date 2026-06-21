@@ -44,7 +44,7 @@ class CommunityStatusLabel extends StatelessWidget {
           ),
           const SizedBox(width: 2),
           Text(
-            isLive ? '디베이트 중' : '모집 중',
+            isLive ? '토론 중' : '준비 중',
             style: TextStyle(
               color: foreground,
               fontSize: 13,

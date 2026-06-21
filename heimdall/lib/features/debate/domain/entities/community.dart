@@ -15,8 +15,8 @@ enum CommunityCategory {
 }
 
 enum CommunityStatus {
-  waiting('모집 중'),
-  live('디베이트 중'),
+  waiting('준비 중'),
+  live('토론 중'),
   analyzing('분석 중'),
   finished('종료'),
   canceled('취소');

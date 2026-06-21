@@ -48,7 +48,7 @@ class CommunityListHeader extends StatelessWidget {
                       onChanged: onQueryChanged,
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
-                        hintText: '커뮤니티 주제나 제목 검색',
+                        hintText: '토론 주제나 제목 검색',
                         prefixIcon: Icon(
                           Icons.search_rounded,
                           color: AppColors.textMuted,

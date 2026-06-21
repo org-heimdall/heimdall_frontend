@@ -60,7 +60,7 @@ class CommunityDetailScreen extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: HeimdallBottomActionBar(
-        label: community.isJoinable ? '커뮤니티 참여하기' : '진행 중인 디베이트 보기',
+        label: '커뮤니티 입장하기',
         onPressed: () => context.push('/communities/${community.id}/debate'),
         includeSafeArea: false,
       ),
