@@ -61,7 +61,7 @@ class CommunityDetailScreen extends StatelessWidget {
       ),
       bottomNavigationBar: HeimdallBottomActionBar(
         label: '커뮤니티 입장하기',
-        onPressed: () => context.push('/communities/${community.id}/debate'),
+        onPressed: () => context.push('/communities/${community.id}/chat'),
         includeSafeArea: false,
       ),
     );

@@ -7,8 +7,9 @@ import '../features/debate/presentation/providers/community_providers.dart';
 import '../features/debate/presentation/screens/create_community_screen.dart';
 import '../features/debate/presentation/screens/community_detail_screen.dart';
 import '../features/debate/presentation/screens/community_list_screen.dart';
-import '../features/debate/presentation/screens/debate_result_screen.dart';
 import '../features/debate/presentation/screens/debate_session_screen.dart';
+import '../features/debate/presentation/screens/debate_result_screen.dart';
+import '../features/debate/presentation/screens/community_chat_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final repository = ref.watch(communityRepositoryProvider);
@@ -32,6 +33,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return community == null
               ? const _RouteNotFoundScreen()
               : CommunityDetailScreen(community: community);
+        },
+      ),
+      GoRoute(
+        path: '/communities/:id/chat',
+        builder: (context, state) {
+          final community = repository.getCommunityById(
+            state.pathParameters['id'] ?? '',
+          );
+          return community == null
+              ? const _RouteNotFoundScreen()
+              : CommunityChatScreen(community: community);
         },
       ),
       GoRoute(
