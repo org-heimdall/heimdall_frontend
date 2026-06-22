@@ -22,11 +22,23 @@ class HeimdallLabeledTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isRequired = label.endsWith(' *');
+    final labelText = isRequired ? label.substring(0, label.length - 2) : label;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
+        Text.rich(
+          TextSpan(
+            text: labelText,
+            children: [
+              if (isRequired)
+                const TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Color(0xFFA1AEFF)),
+                ),
+            ],
+          ),
           style: const TextStyle(
             color: AppColors.textSecondary,
             fontSize: 18,

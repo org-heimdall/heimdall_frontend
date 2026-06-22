@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/debate_room.dart';
+import '../../domain/entities/community.dart';
 import 'heimdall_card.dart';
 import 'side_pill.dart';
 
 class DebateParticipantTile extends StatelessWidget {
   const DebateParticipantTile({required this.participant, super.key});
 
-  final DebateParticipant participant;
+  final Debater participant;
 
   @override
   Widget build(BuildContext context) {

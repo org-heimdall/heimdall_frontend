@@ -18,17 +18,44 @@ class HeimdallPrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = active && onPressed != null;
 
-    return FilledButton(
-      onPressed: enabled ? onPressed : null,
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(54),
-        backgroundColor: enabled ? AppColors.primary : AppColors.surface,
-        disabledBackgroundColor: AppColors.surface,
-        foregroundColor: enabled ? AppColors.textPrimary : AppColors.textMuted,
-        disabledForegroundColor: AppColors.textMuted,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    return SizedBox(
+      width: double.infinity,
+      height: 57,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: enabled ? null : AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(12),
+              gradient: enabled
+                  ? const LinearGradient(
+                      colors: [Color(0xFF526BFF), AppColors.primary],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    )
+                  : null,
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: enabled
+                      ? AppColors.textSecondary
+                      : AppColors.textMuted,
+                  fontSize: 18,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 }
@@ -38,26 +65,36 @@ class HeimdallBottomActionBar extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.active = true,
+    this.includeSafeArea = true,
     super.key,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool active;
+  final bool includeSafeArea;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final bottomPadding = includeSafeArea
+        ? MediaQuery.paddingOf(context).bottom
+        : 0.0;
+    final bottomInset = includeSafeArea ? 16.0 + bottomPadding : 32.0;
+
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.surface)),
-      ),
-      child: HeimdallPrimaryButton(
-        label: label,
-        onPressed: onPressed,
-        active: active,
+      height: 73 + bottomInset,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset),
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          border: Border(top: BorderSide(color: AppColors.surface)),
+        ),
+        child: HeimdallPrimaryButton(
+          label: label,
+          onPressed: onPressed,
+          active: active,
+        ),
       ),
     );
   }

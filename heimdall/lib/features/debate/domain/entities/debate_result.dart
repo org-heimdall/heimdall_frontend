@@ -1,4 +1,4 @@
-import 'debate_room.dart';
+import 'community.dart';
 
 class DebateScore {
   const DebateScore({

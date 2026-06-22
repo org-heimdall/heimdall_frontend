@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'heimdall_logo.dart';
 
-class DebateListHeader extends StatelessWidget {
-  const DebateListHeader({
+class CommunityListHeader extends StatelessWidget {
+  const CommunityListHeader({
     required this.isSearching,
     required this.onSearchTap,
     required this.onQueryChanged,

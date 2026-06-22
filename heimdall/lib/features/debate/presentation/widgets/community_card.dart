@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/debate_room.dart';
-import 'debate_status_badge.dart';
+import '../../domain/entities/community.dart';
+import 'debate_elapsed_time.dart';
+import 'community_status_label.dart';
 import 'participant_stack.dart';
 
-class DebateRoomCard extends StatelessWidget {
-  const DebateRoomCard({required this.room, required this.onTap, super.key});
+class CommunityCard extends StatelessWidget {
+  const CommunityCard({
+    required this.community,
+    required this.onTap,
+    super.key,
+  });
 
-  final DebateRoom room;
+  final Community community;
   final VoidCallback onTap;
 
   @override
@@ -37,9 +42,9 @@ class DebateRoomCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DebateStatusBadge(status: room.status),
-                  if (room.status == DebateStatus.live)
-                    ParticipantStack(participants: room.participants),
+                  CommunityStatusLabel.fromStatus(status: community.status),
+                  if (community.status == CommunityStatus.live)
+                    ParticipantStack(activeDebaters: community.activeDebaters),
                 ],
               ),
             ),
@@ -48,7 +53,7 @@ class DebateRoomCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    room.title,
+                    community.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -62,7 +67,7 @@ class DebateRoomCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${room.audienceCount}',
+                  '${community.observerCount}',
                   style: const TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 18,
@@ -74,16 +79,7 @@ class DebateRoomCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              '토론 진행 시간 : ${room.elapsedMinutes == 0 ? '-' : '${room.elapsedMinutes}분'}',
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w400,
-                letterSpacing: -0.5,
-              ),
-            ),
+            DebateElapsedTime(minutes: community.elapsedMinutes),
           ],
         ),
       ),
