@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/community.dart';
 import '../widgets/community_status_label.dart';
+import '../widgets/debate_elapsed_time.dart';
 import '../widgets/heimdall_controls.dart';
 import '../widgets/heimdall_logo.dart';
 
@@ -77,7 +80,7 @@ class _CommunityDebateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
@@ -94,12 +97,14 @@ class _CommunityDebateCard extends StatelessWidget {
             children: [
               CommunityStatusLabel.fromStatus(status: community.status),
               const Spacer(),
-              _CategoryChip(label: community.category.label),
+              _ObserverPill(count: community.observerCount),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Text(
             community.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 18,
@@ -108,20 +113,33 @@ class _CommunityDebateCard extends StatelessWidget {
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
+          DebateElapsedTime(minutes: community.elapsedMinutes),
+          const SizedBox(height: 16),
           Text(
             community.topic,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: AppColors.textMuted,
+              color: AppColors.textSecondary,
               fontSize: 16,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 18),
-          _InfoGrid(
-            rounds: community.rounds,
-            totalMinutes: community.rounds * 6 + 4,
-            isPublic: community.isPublic,
+          const SizedBox(height: 16),
+          _CardDivider(),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _HostInline(host: community.host),
+              const Spacer(),
+              _CardMetaChip(label: community.category.label),
+              const SizedBox(width: 6),
+              _CardMetaChip(
+                label: '${community.rounds}라운드',
+                iconAsset: AppAssets.repeatIcon,
+              ),
+            ],
           ),
         ],
       ),
@@ -129,102 +147,150 @@ class _CommunityDebateCard extends StatelessWidget {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.label});
+class _ObserverPill extends StatelessWidget {
+  const _ObserverPill({required this.count});
 
-  final String label;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(6, 4, 7, 4),
       decoration: BoxDecoration(
-        color: AppColors.primarySoft,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontSize: 16,
-          height: 1.4,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.3,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.group_rounded, size: 16, color: AppColors.textMuted),
+          const SizedBox(width: 2),
+          Text(
+            '$count',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _InfoGrid extends StatelessWidget {
-  const _InfoGrid({
-    required this.rounds,
-    required this.totalMinutes,
-    required this.isPublic,
-  });
-
-  final int rounds;
-  final int totalMinutes;
-  final bool isPublic;
-
+class _CardDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _InfoTile(label: '라운드', value: '$rounds개'),
-        const SizedBox(width: 8),
-        _InfoTile(label: '전체 시간', value: '$totalMinutes분'),
-        const SizedBox(width: 8),
-        _InfoTile(label: '공개', value: isPublic ? '공개' : '비공개'),
-      ],
-    );
+    return Container(height: 1, color: AppColors.divider);
   }
 }
 
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({required this.label, required this.value});
+class _HostInline extends StatelessWidget {
+  const _HostInline({required this.host});
 
-  final String label;
-  final String value;
+  final CommunityHost host;
 
   @override
   Widget build(BuildContext context) {
     return Flexible(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Color(host.avatarColor),
+            child: Text(
+              host.name.characters.first,
               style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -0.3,
+                color: AppColors.background,
+                fontSize: 12,
+                height: 1,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 16,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '호스트',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                Text(
+                  host.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardMetaChip extends StatelessWidget {
+  const _CardMetaChip({required this.label, this.iconAsset});
+
+  final String label;
+  final String? iconAsset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (iconAsset != null) ...[
+            SvgPicture.asset(
+              iconAsset!,
+              width: 14,
+              height: 14,
+              colorFilter: const ColorFilter.mode(
+                AppColors.textMuted,
+                BlendMode.srcIn,
               ),
             ),
+            const SizedBox(width: 3),
           ],
-        ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -42,21 +42,24 @@ class DebatePopupSheet extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        onPressed: onClose,
+                        icon: const Icon(Icons.close_rounded),
+                        color: AppColors.textMuted,
+                        tooltip: '닫기',
+                      ),
+                    ),
+                  ),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: IconButton(
-                              onPressed: onClose,
-                              icon: const Icon(Icons.close_rounded),
-                              color: AppColors.textMuted,
-                              tooltip: '닫기',
-                            ),
-                          ),
                           _PopupUserSummary(userName: userName, score: score),
                           const SizedBox(height: 24),
                           _ReadonlyField(label: '주장', text: claim),
@@ -135,35 +138,52 @@ class _PopupUserSummary extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.fromLTRB(4, 2, 6, 2),
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
+          _ProfileScoreBadge(score: score),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileScoreBadge extends StatelessWidget {
+  const _ProfileScoreBadge({required this.score});
+
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 2, 6, 2),
+      decoration: BoxDecoration(
+        color: AppColors.primarySoft.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: Center(
+              child: SvgPicture.asset(
+                AppAssets.trophyIcon,
+                width: 16,
+                height: 16,
+                colorFilter: const ColorFilter.mode(
+                  AppColors.primary,
+                  BlendMode.srcIn,
+                ),
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SvgPicture.asset(
-                  AppAssets.trophyIcon,
-                  width: 20,
-                  height: 20,
-                  colorFilter: const ColorFilter.mode(
-                    AppColors.primary,
-                    BlendMode.srcIn,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Text(
-                  '$score',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 14,
-                    height: 1.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '$score',
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 14,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
