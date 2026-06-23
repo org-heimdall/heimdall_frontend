@@ -265,7 +265,7 @@ class _ReasonList extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
                   width: 20,
