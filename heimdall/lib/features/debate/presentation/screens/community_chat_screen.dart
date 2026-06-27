@@ -112,8 +112,8 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               viewerRole: widget.viewerRole,
               onBack: () => Navigator.maybePop(context),
               onWatch: () =>
-                  context.go('/communities/${widget.community.id}/debate'),
-              onMore: () => context.go(
+                  context.push('/communities/${widget.community.id}/debate'),
+              onMore: () => context.push(
                 '/communities/${widget.community.id}/debate/result',
               ),
             ),
@@ -398,7 +398,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               onClose: () => Navigator.pop(dialogContext),
               onDebate: () {
                 Navigator.pop(dialogContext);
-                context.go('/communities/${widget.community.id}/debate');
+                context.push('/communities/${widget.community.id}/debate');
               },
             ),
           ),
@@ -762,6 +762,63 @@ class _ChatMessageRow extends StatelessWidget {
     final maxMessageWidth = isMine
         ? MediaQuery.sizeOf(context).width - 16 * 2 - 72
         : MediaQuery.sizeOf(context).width - 16 * 2 - 36 - 8 - 4 - 28;
+    final messageBody = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxMessageWidth),
+      child: Column(
+        crossAxisAlignment: isMine
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          if (!isMine) ...[
+            Text(
+              message.authorName,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                height: 1.35,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: isMine ? AppColors.primary : AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              message.text,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+          ),
+          if (message.deliveryStatus ==
+              CommunityChatMessageDeliveryStatus.failed) ...[
+            const SizedBox(height: 4),
+            InkWell(
+              onTap: onRetry,
+              borderRadius: BorderRadius.circular(4),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                child: Text(
+                  '전송 실패 · 다시 보내기',
+                  style: TextStyle(
+                    color: AppColors.con,
+                    fontSize: 11,
+                    height: 1.35,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -771,72 +828,17 @@ class _ChatMessageRow extends StatelessWidget {
             ? MainAxisAlignment.end
             : MainAxisAlignment.start,
         children: [
-          if (!isMine) ...[
-            _ChatAvatar(accent: message.accentAvatar, onTap: onProfileTap),
-            const SizedBox(width: 8),
-          ],
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxMessageWidth),
-            child: Column(
-              crossAxisAlignment: isMine
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
+          if (!isMine)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!isMine) ...[
-                  Text(
-                    message.authorName,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isMine
-                        ? AppColors.primary
-                        : AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    message.text,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-                if (message.deliveryStatus ==
-                    CommunityChatMessageDeliveryStatus.failed) ...[
-                  const SizedBox(height: 4),
-                  InkWell(
-                    onTap: onRetry,
-                    borderRadius: BorderRadius.circular(4),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                      child: Text(
-                        '전송 실패 · 다시 보내기',
-                        style: TextStyle(
-                          color: AppColors.con,
-                          fontSize: 11,
-                          height: 1.35,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                _ChatAvatar(accent: message.accentAvatar, onTap: onProfileTap),
+                const SizedBox(width: 8),
+                messageBody,
               ],
-            ),
-          ),
+            )
+          else
+            messageBody,
           if (!isMine) ...[
             const SizedBox(width: 4),
             _NominateButton(onTap: () {}),
