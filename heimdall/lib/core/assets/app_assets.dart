@@ -8,6 +8,7 @@ abstract final class AppAssets {
   static const repeatIcon = 'assets/figma/repeat.svg';
   static const avatarBlue = 'assets/figma/avatar_blue.jpeg';
   static const avatarRed = 'assets/figma/avatar_red.jpeg';
+  static const communityHostAvatar = 'assets/figma/community_host_avatar.png';
   static const appIcon = 'assets/figma/app_icon.png';
   static const debateListReference = 'assets/figma/debate_list_reference.png';
 }

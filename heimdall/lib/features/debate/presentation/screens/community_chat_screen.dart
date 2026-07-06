@@ -11,6 +11,7 @@ import '../../domain/entities/community.dart';
 import '../../domain/entities/community_user_profile.dart';
 import '../providers/community_chat_providers.dart';
 import '../providers/community_user_profile_providers.dart';
+import '../widgets/community_member.dart';
 import '../widgets/debate_popup_sheet.dart';
 
 class CommunityChatScreen extends ConsumerStatefulWidget {
@@ -113,9 +114,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               onBack: () => Navigator.maybePop(context),
               onWatch: () =>
                   context.push('/communities/${widget.community.id}/debate'),
-              onMore: () => context.push(
-                '/communities/${widget.community.id}/debate/result',
-              ),
+              onMore: _showCommunityMembers,
             ),
             Expanded(
               child: ListView(
@@ -145,6 +144,54 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showCommunityMembers() {
+    final memberNames = <String>[
+      widget.community.host.name,
+      ...widget.community.activeDebaters
+          .map((debater) => debater.name)
+          .where((name) => name != widget.community.host.name),
+      'Username1',
+      'Username2',
+      'Username3',
+      'Username5',
+      'Username6',
+    ];
+
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '커뮤니티 참여자 닫기',
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      transitionDuration: const Duration(milliseconds: 240),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 329),
+            child: SizedBox(
+              width: MediaQuery.sizeOf(dialogContext).width - 74,
+              height: double.infinity,
+              child: CommunityMember(
+                hostName: widget.community.host.name,
+                memberNames: memberNames.take(7).toList(),
+                onClose: () => Navigator.pop(dialogContext),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          child: child,
+        );
+      },
     );
   }
 
