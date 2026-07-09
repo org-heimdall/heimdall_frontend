@@ -144,6 +144,7 @@ class MockCommunityRepository {
       createdAt: DateTime.now(),
       hostClaim: hostClaim,
       hostReasons: hostReasons,
+      isOwnedByCurrentUser: true,
     );
     _communities.insert(0, room);
     return room;

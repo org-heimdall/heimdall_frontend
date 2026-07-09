@@ -11,7 +11,9 @@ import '../../domain/entities/community.dart';
 import '../../domain/entities/community_user_profile.dart';
 import '../providers/community_chat_providers.dart';
 import '../providers/community_user_profile_providers.dart';
-import '../widgets/community_member.dart';
+import '../widgets/community__host_member.dart';
+import '../widgets/community_guest_member.dart';
+import '../widgets/community_opinion.dart';
 import '../widgets/debate_popup_sheet.dart';
 
 class CommunityChatScreen extends ConsumerStatefulWidget {
@@ -140,7 +142,14 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                 ],
               ),
             ),
-            _WatchRoomInput(controller: _messageController, onSend: _send),
+            _WatchRoomInput(
+              controller: _messageController,
+              onSend: _send,
+              onOpeningStatement:
+                  widget.viewerRole == CommunityChatViewerRole.host
+                  ? null
+                  : _showOpeningStatementSheet,
+            ),
           ],
         ),
       ),
@@ -148,6 +157,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   }
 
   void _showCommunityMembers() {
+    const currentUserName = 'Username';
     final memberNames = <String>[
       widget.community.host.name,
       ...widget.community.activeDebaters
@@ -167,6 +177,16 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       barrierColor: Colors.black.withValues(alpha: 0.8),
       transitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final isHost = widget.viewerRole == CommunityChatViewerRole.host;
+        final guestMemberNames = <String>[
+          currentUserName,
+          widget.community.host.name,
+          ...memberNames.where(
+            (name) =>
+                name != currentUserName && name != widget.community.host.name,
+          ),
+        ];
+
         return Align(
           alignment: Alignment.centerRight,
           child: ConstrainedBox(
@@ -174,11 +194,26 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
             child: SizedBox(
               width: MediaQuery.sizeOf(dialogContext).width - 74,
               height: double.infinity,
-              child: CommunityMember(
-                hostName: widget.community.host.name,
-                memberNames: memberNames.take(7).toList(),
-                onClose: () => Navigator.pop(dialogContext),
-              ),
+              child: isHost
+                  ? CommunityMember(
+                      hostName: widget.community.host.name,
+                      memberNames: memberNames.take(7).toList(),
+                      onClose: () => Navigator.pop(dialogContext),
+                      showHostActions: true,
+                      onDeleteCommunity: () =>
+                          _showPanelActionFeedback('커뮤니티 삭제 기능은 준비 중입니다.'),
+                      onReport: () =>
+                          _showPanelActionFeedback('신고 기능은 준비 중입니다.'),
+                    )
+                  : CommunityGuestMember(
+                      userName: currentUserName,
+                      memberNames: guestMemberNames.take(7).toList(),
+                      onClose: () => Navigator.pop(dialogContext),
+                      onLeaveChat: () =>
+                          _showPanelActionFeedback('채팅방 나가기 기능은 준비 중입니다.'),
+                      onReport: () =>
+                          _showPanelActionFeedback('신고 기능은 준비 중입니다.'),
+                    ),
             ),
           ),
         );
@@ -193,6 +228,43 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
         );
       },
     );
+  }
+
+  void _showPanelActionFeedback(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showOpeningStatementSheet() async {
+    await showModalBottomSheet<CommunityOpinionDraft>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (sheetContext) {
+        return CommunityOpinionSheet(onSubmit: _submitOpeningStatement);
+      },
+    );
+  }
+
+  void _submitOpeningStatement(CommunityOpinionDraft draft) {
+    setState(() {
+      _messages.add(
+        CommunityChatMessage(
+          id: 'opening-${DateTime.now().microsecondsSinceEpoch}',
+          communityId: widget.community.id,
+          authorId: 'system',
+          authorName: 'System',
+          text: '나 님이 기조 발언을 작성했습니다.',
+          relatedUserId: 'me',
+          type: CommunityChatMessageType.openingStatementNotice,
+          createdAt: DateTime.now(),
+        ),
+      );
+    });
+    _scrollToBottomAfterBuild();
   }
 
   // 시스템 알림과 일반 메시지를 서버 생성 시간 기준으로 섞어 보여준다.
@@ -1011,10 +1083,15 @@ class _DiscussionGuide extends StatelessWidget {
 }
 
 class _WatchRoomInput extends StatelessWidget {
-  const _WatchRoomInput({required this.controller, required this.onSend});
+  const _WatchRoomInput({
+    required this.controller,
+    required this.onSend,
+    this.onOpeningStatement,
+  });
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final VoidCallback? onOpeningStatement;
 
   @override
   Widget build(BuildContext context) {
@@ -1029,7 +1106,7 @@ class _WatchRoomInput extends StatelessWidget {
             icon: Icons.add_rounded,
             color: AppColors.accent,
             foreground: AppColors.background,
-            onTap: () {},
+            onTap: onOpeningStatement,
           ),
           const SizedBox(width: 8),
           _CircleIconButton(
@@ -1104,7 +1181,7 @@ class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final Color color;
   final Color foreground;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1114,8 +1191,15 @@ class _CircleIconButton extends StatelessWidget {
       child: Container(
         width: 40,
         height: 40,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: Icon(icon, color: foreground, size: 24),
+        decoration: BoxDecoration(
+          color: onTap == null ? AppColors.surfaceElevated : color,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          color: onTap == null ? AppColors.textMuted : foreground,
+          size: 24,
+        ),
       ),
     );
   }

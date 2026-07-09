@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
 import '../features/debate/presentation/providers/community_providers.dart';
+import '../features/debate/domain/entities/community.dart';
+import '../features/debate/domain/entities/community_chat.dart';
 import '../features/debate/presentation/screens/create_community_screen.dart';
 import '../features/debate/presentation/screens/community_detail_screen.dart';
 import '../features/debate/presentation/screens/community_list_screen.dart';
@@ -43,7 +45,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return community == null
               ? const _RouteNotFoundScreen()
-              : CommunityChatScreen(community: community);
+              : CommunityChatScreen(
+                  community: community,
+                  viewerRole: _chatViewerRoleFor(state, community),
+                );
         },
       ),
       GoRoute(
@@ -74,6 +79,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+CommunityChatViewerRole _chatViewerRoleFor(
+  GoRouterState state,
+  Community community,
+) {
+  final role = state.uri.queryParameters['role'];
+  if (role == 'host') {
+    return CommunityChatViewerRole.host;
+  }
+  if (role == 'debater') {
+    return CommunityChatViewerRole.debater;
+  }
+  return community.isOwnedByCurrentUser
+      ? CommunityChatViewerRole.host
+      : CommunityChatViewerRole.member;
+}
 
 class _RouteNotFoundScreen extends StatelessWidget {
   const _RouteNotFoundScreen();

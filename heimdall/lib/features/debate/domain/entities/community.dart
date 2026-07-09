@@ -70,6 +70,7 @@ class Community {
     required this.createdAt,
     this.hostClaim = '',
     this.hostReasons = const [],
+    this.isOwnedByCurrentUser = false,
   });
 
   final String id;
@@ -86,6 +87,7 @@ class Community {
   final DateTime createdAt;
   final String hostClaim;
   final List<String> hostReasons;
+  final bool isOwnedByCurrentUser;
 
   bool get isJoinable =>
       status == CommunityStatus.waiting && activeDebaters.length < 2;

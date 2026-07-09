@@ -10,6 +10,9 @@ class CommunityMember extends StatefulWidget {
     required this.memberNames,
     required this.onClose,
     this.hostScore = 32,
+    this.showHostActions = false,
+    this.onDeleteCommunity,
+    this.onReport,
     super.key,
   });
 
@@ -17,6 +20,9 @@ class CommunityMember extends StatefulWidget {
   final int hostScore;
   final List<String> memberNames;
   final VoidCallback onClose;
+  final bool showHostActions;
+  final VoidCallback? onDeleteCommunity;
+  final VoidCallback? onReport;
 
   @override
   State<CommunityMember> createState() => _CommunityMemberState();
@@ -60,7 +66,12 @@ class _CommunityMemberState extends State<CommunityMember> {
             const SizedBox(height: 16),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 30),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  0,
+                  16,
+                  widget.showHostActions ? 24 : 30,
+                ),
                 children: [
                   const Text(
                     '토론 의사',
@@ -135,6 +146,95 @@ class _CommunityMemberState extends State<CommunityMember> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            if (widget.showHostActions)
+              _HostCommunityActions(
+                onDeleteCommunity: widget.onDeleteCommunity,
+                onReport: widget.onReport,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HostCommunityActions extends StatelessWidget {
+  const _HostCommunityActions({
+    required this.onDeleteCommunity,
+    required this.onReport,
+  });
+
+  final VoidCallback? onDeleteCommunity;
+  final VoidCallback? onReport;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.surfaceElevated)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _HostCommunityActionButton(
+              label: '커뮤니티 삭제하기',
+              icon: Icons.delete_rounded,
+              color: const Color(0xFFFF5410),
+              onTap: onDeleteCommunity,
+            ),
+            const Divider(
+              height: 1,
+              thickness: 1,
+              color: AppColors.surfaceElevated,
+            ),
+            _HostCommunityActionButton(
+              label: '신고하기',
+              icon: Icons.report_rounded,
+              color: Color(0xFFA7B4BF),
+              onTap: onReport,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HostCommunityActionButton extends StatelessWidget {
+  const _HostCommunityActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: 60,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 30, color: color),
+            const SizedBox(width: 28),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 18,
+                height: 1.4,
+                letterSpacing: -0.5,
               ),
             ),
           ],
