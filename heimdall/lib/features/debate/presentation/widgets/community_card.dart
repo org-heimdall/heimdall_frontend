@@ -24,15 +24,20 @@ class CommunityCard extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(20),
-          gradient: const RadialGradient(
-            center: Alignment(0.7, -0.75),
-            radius: 1.65,
-            colors: [Color(0x332C2F70), AppColors.card],
-          ),
-        ),
+	        decoration: BoxDecoration(
+	          color: const Color(0xFF222A36),
+	          borderRadius: BorderRadius.circular(20),
+	          gradient: const LinearGradient(
+	            begin: Alignment.topLeft,
+	            end: Alignment.bottomRight,
+	            stops: [0, 0.58, 1],
+	            colors: [
+	              Color(0xFF202A39),
+	              Color(0xFF252B3A),
+	              Color(0xFF293047),
+	            ],
+	          ),
+	        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

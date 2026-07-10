@@ -11,7 +11,7 @@ import '../../domain/entities/community.dart';
 import '../../domain/entities/community_user_profile.dart';
 import '../providers/community_chat_providers.dart';
 import '../providers/community_user_profile_providers.dart';
-import '../widgets/community__host_member.dart';
+import '../widgets/community_host_member.dart';
 import '../widgets/community_guest_member.dart';
 import '../widgets/community_opinion.dart';
 import '../widgets/debate_popup_sheet.dart';
@@ -569,7 +569,7 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(6, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(6, 10, 12, 6),
             child: Row(
               children: [
                 IconButton(
@@ -583,13 +583,12 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
                     widget.community.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 22,
-                      height: 1.4,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.5,
-                    ),
+	                    style: const TextStyle(
+	                      color: AppColors.textSecondary,
+	                      fontSize: 21,
+	                      height: 1.4,
+	                      fontWeight: FontWeight.w600,
+	                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -615,7 +614,7 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
           ),
           if (!_isDebaterPreviewCollapsed)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+	              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Stack(
                 children: [
                   Row(
@@ -628,17 +627,16 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
                         ),
                       ),
                       const SizedBox(
-                        width: 24,
-                        child: Text(
-                          'VS',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 16,
-                            height: 1.4,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.3,
-                          ),
+	                          width: 24,
+	                          child: Text(
+	                            'VS',
+	                            textAlign: TextAlign.center,
+	                            style: TextStyle(
+	                              color: AppColors.textMuted,
+	                              fontSize: 15,
+	                              height: 1.4,
+	                              fontWeight: FontWeight.w600,
+	                            ),
                         ),
                       ),
                       Expanded(
@@ -664,7 +662,7 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
             ),
           if (!_isDebaterPreviewCollapsed && widget.viewerRole.canWatchDebate)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+	              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: _WatchDebateButton(
                 enabled: hasOpponent,
                 onTap: widget.onWatch,
@@ -835,8 +833,8 @@ class _DebaterPreview extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 40,
-          height: 40,
+	        width: 40,
+	        height: 40,
           decoration: BoxDecoration(
             color: active ? null : AppColors.surfaceElevated,
             shape: BoxShape.circle,
@@ -846,7 +844,7 @@ class _DebaterPreview extends StatelessWidget {
               ? Image.asset(avatarAsset!, fit: BoxFit.cover)
               : const SizedBox.shrink(),
         ),
-        const SizedBox(height: 6),
+	        const SizedBox(height: 5),
         Text(
           name,
           maxLines: 1,
@@ -854,9 +852,9 @@ class _DebaterPreview extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: active ? AppColors.textSecondary : AppColors.textMuted,
-            fontSize: 14,
-            height: 1.5,
-            fontWeight: FontWeight.w500,
+	            fontSize: 14,
+	            height: 1.5,
+	            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -893,25 +891,24 @@ class _ChatMessageRow extends StatelessWidget {
               message.authorName,
               style: const TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 12,
-                height: 1.35,
-                letterSpacing: -0.5,
+	                fontSize: 11,
+	                height: 1.2,
               ),
             ),
-            const SizedBox(height: 4),
+	            const SizedBox(height: 6),
           ],
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+	            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: isMine ? AppColors.primary : AppColors.surfaceElevated,
-              borderRadius: BorderRadius.circular(16),
+	              borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               message.text,
               style: const TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 16,
-                height: 1.5,
+	                fontSize: 15,
+	                height: 1.6,
               ),
             ),
           ),
@@ -940,7 +937,7 @@ class _ChatMessageRow extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+	      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: isMine
@@ -1098,7 +1095,7 @@ class _WatchRoomInput extends StatelessWidget {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 12 + bottomPadding),
+	      padding: EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomPadding),
       color: AppColors.background,
       child: Row(
         children: [
@@ -1108,17 +1105,17 @@ class _WatchRoomInput extends StatelessWidget {
             foreground: AppColors.background,
             onTap: onOpeningStatement,
           ),
-          const SizedBox(width: 8),
+	          const SizedBox(width: 8),
           _CircleIconButton(
             icon: Icons.image_outlined,
             color: AppColors.surfaceElevated,
             foreground: AppColors.textSecondary,
             onTap: () {},
           ),
-          const SizedBox(width: 8),
+	          const SizedBox(width: 8),
           Expanded(
             child: Container(
-              height: 40,
+	              height: 36,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: AppColors.surfaceElevated,
@@ -1131,8 +1128,8 @@ class _WatchRoomInput extends StatelessWidget {
                       controller: controller,
                       style: const TextStyle(
                         color: AppColors.textSecondary,
-                        fontSize: 16,
-                        height: 1.5,
+	                        fontSize: 14,
+	                        height: 1.45,
                       ),
                       decoration: const InputDecoration(
                         isDense: true,
@@ -1144,8 +1141,8 @@ class _WatchRoomInput extends StatelessWidget {
                         hintText: '관전방에서 대화하기',
                         hintStyle: TextStyle(
                           color: AppColors.textMuted,
-                          fontSize: 16,
-                          height: 1.5,
+	                          fontSize: 14,
+	                          height: 1.45,
                         ),
                       ),
                       onSubmitted: (_) => onSend(),
@@ -1157,7 +1154,7 @@ class _WatchRoomInput extends StatelessWidget {
                     child: const Icon(
                       Icons.mic_rounded,
                       color: AppColors.textMuted,
-                      size: 24,
+	                      size: 22,
                     ),
                   ),
                 ],
@@ -1187,10 +1184,10 @@ class _CircleIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 40,
-        height: 40,
+	      borderRadius: BorderRadius.circular(18),
+	      child: Container(
+	        width: 36,
+	        height: 36,
         decoration: BoxDecoration(
           color: onTap == null ? AppColors.surfaceElevated : color,
           shape: BoxShape.circle,
@@ -1198,7 +1195,7 @@ class _CircleIconButton extends StatelessWidget {
         child: Icon(
           icon,
           color: onTap == null ? AppColors.textMuted : foreground,
-          size: 24,
+	          size: 23,
         ),
       ),
     );
