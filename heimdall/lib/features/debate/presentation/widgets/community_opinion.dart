@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -51,6 +52,11 @@ class _CommunityOpinionSheetState extends State<CommunityOpinionSheet> {
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final availableHeight =
+        MediaQuery.sizeOf(context).height -
+        keyboardInset -
+        MediaQuery.paddingOf(context).top;
+    final sheetHeight = math.min(578.0, availableHeight);
 
     return Padding(
       padding: EdgeInsets.only(bottom: keyboardInset),
@@ -58,14 +64,14 @@ class _CommunityOpinionSheetState extends State<CommunityOpinionSheet> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         child: ColoredBox(
           color: AppColors.background,
-          child: SafeArea(
-            top: false,
+          child: SizedBox(
+            height: sheetHeight,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -182,6 +188,7 @@ class _SheetHeader extends StatelessWidget {
             color: AppColors.textMuted,
             fontSize: 16,
             height: 1.5,
+            letterSpacing: -0.5,
           ),
         ),
       ],
@@ -296,6 +303,7 @@ class _ReasonTextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: const BoxConstraints(minHeight: 52),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
@@ -342,9 +350,10 @@ class _ReasonTextField extends StatelessWidget {
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 hintText: '주장을 뒷받침할 근거를 작성해주세요.',
+                hintMaxLines: 1,
                 hintStyle: TextStyle(
                   color: AppColors.textSubtle,
-                  fontSize: 16,
+                  fontSize: 15,
                   height: 1.5,
                 ),
               ),
@@ -370,38 +379,42 @@ class _OpinionTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      textInputAction: textInputAction,
-      style: const TextStyle(
-        color: AppColors.textSecondary,
-        fontSize: 16,
-        height: 1.5,
-      ),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(
-          color: AppColors.textSubtle,
+    return SizedBox(
+      height: 52,
+      child: TextField(
+        controller: controller,
+        textInputAction: textInputAction,
+        style: const TextStyle(
+          color: AppColors.textSecondary,
           fontSize: 16,
           height: 1.5,
         ),
-        filled: true,
-        fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(
+            color: AppColors.textSubtle,
+            fontSize: 15,
+            height: 1.5,
+          ),
+          hintMaxLines: 1,
+          filled: true,
+          fillColor: AppColors.surface,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary),
+          ),
         ),
       ),
     );
@@ -453,6 +466,7 @@ class _SubmitBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+      height: 105,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       decoration: const BoxDecoration(
         color: AppColors.background,
@@ -466,7 +480,7 @@ class _SubmitBar extends StatelessWidget {
           disabledBackgroundColor: AppColors.surfaceElevated,
           foregroundColor: AppColors.textSecondary,
           disabledForegroundColor: AppColors.textMuted,
-          minimumSize: const Size.fromHeight(56),
+          minimumSize: const Size.fromHeight(57),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -474,7 +488,6 @@ class _SubmitBar extends StatelessWidget {
             fontSize: 18,
             height: 1.4,
             fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
           ),
         ),
         child: submitting

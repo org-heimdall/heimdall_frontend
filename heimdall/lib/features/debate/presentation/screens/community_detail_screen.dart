@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/community.dart';
 import '../widgets/community_status_label.dart';
-import '../widgets/debate_elapsed_time.dart';
 import '../widgets/heimdall_controls.dart';
 import '../widgets/heimdall_logo.dart';
 
@@ -23,6 +20,7 @@ class CommunityDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 65,
         leading: const HeimdallBackButton(),
         title: const Text(
           '커뮤니티 상세',
@@ -37,33 +35,33 @@ class CommunityDetailScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 132),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 128),
           children: [
             _CommunityDebateCard(community: community),
-            const SizedBox(height: 48),
+            const SizedBox(height: 24),
             const _SectionTitle('호스트'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _HostSummary(host: community.host),
-            const SizedBox(height: 48),
+            const SizedBox(height: 34),
             const _SectionTitle('호스트 주장'),
             const SizedBox(height: 16),
-            _ReadonlyBox(
+            _ClaimBox(
               text: community.hostClaim.isEmpty
                   ? '호스트가 등록한 주장이 없습니다.'
                   : community.hostClaim,
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 24),
             const _SectionTitle('호스트 근거'),
             const SizedBox(height: 16),
             for (var i = 0; i < hostReasons.length; i++) ...[
               _ReasonBox(index: i + 1, text: hostReasons[i]),
-              if (i != hostReasons.length - 1) const SizedBox(height: 10),
+              if (i != hostReasons.length - 1) const SizedBox(height: 16),
             ],
           ],
         ),
       ),
       bottomNavigationBar: HeimdallBottomActionBar(
-        label: '커뮤니티 입장하기',
+        label: '커뮤니티 입장',
         onPressed: () => context.push('/communities/${community.id}/chat'),
         includeSafeArea: false,
       ),
@@ -80,65 +78,59 @@ class _CommunityDebateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      constraints: const BoxConstraints(minHeight: 189),
+      padding: const EdgeInsets.fromLTRB(20, 18, 16, 17),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
-        gradient: const RadialGradient(
-          center: Alignment(0.7, -0.75),
-          radius: 1.65,
-          colors: [Color(0x332C2F70), AppColors.card],
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CommunityStatusLabel.fromStatus(status: community.status),
               const Spacer(),
-              _ObserverPill(count: community.observerCount),
+              _StackedParticipants(community: community),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 13),
           Text(
             community.title,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 18,
+              fontSize: 22,
               height: 1.4,
               fontWeight: FontWeight.w600,
-              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 6),
-          DebateElapsedTime(minutes: community.elapsedMinutes),
-          const SizedBox(height: 16),
-          Text(
-            community.topic,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 16,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _CardDivider(),
           const SizedBox(height: 14),
-          Row(
+          FractionallySizedBox(
+            widthFactor: 0.92,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              community.topic,
+              softWrap: true,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 15,
+            runSpacing: 8,
             children: [
-              _HostInline(host: community.host),
-              const Spacer(),
-              _CardMetaChip(label: community.category.label),
-              const SizedBox(width: 6),
               _CardMetaChip(
                 label: '${community.rounds}라운드',
-                iconAsset: AppAssets.repeatIcon,
+                icon: Icons.repeat_rounded,
               ),
+              _CardMetaChip(label: community.category.label),
             ],
           ),
         ],
@@ -147,102 +139,39 @@ class _CommunityDebateCard extends StatelessWidget {
   }
 }
 
-class _ObserverPill extends StatelessWidget {
-  const _ObserverPill({required this.count});
+class _StackedParticipants extends StatelessWidget {
+  const _StackedParticipants({required this.community});
 
-  final int count;
+  final Community community;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(6, 4, 7, 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    final colors = <Color>[
+      Color(community.host.avatarColor),
+      if (community.activeDebaters.isNotEmpty)
+        Color(community.activeDebaters.first.avatarColor)
+      else
+        AppColors.primary,
+    ];
+
+    return SizedBox(
+      width: 44,
+      height: 28,
+      child: Stack(
         children: [
-          const Icon(Icons.group_rounded, size: 16, color: AppColors.textMuted),
-          const SizedBox(width: 2),
-          Text(
-            '$count',
-            style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 12,
-              height: 1.35,
-              fontWeight: FontWeight.w500,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CardDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(height: 1, color: AppColors.divider);
-  }
-}
-
-class _HostInline extends StatelessWidget {
-  const _HostInline({required this.host});
-
-  final CommunityHost host;
-
-  @override
-  Widget build(BuildContext context) {
-    return Flexible(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: Color(host.avatarColor),
-            child: Text(
-              host.name.characters.first,
-              style: const TextStyle(
-                color: AppColors.background,
-                fontSize: 12,
-                height: 1,
-                fontWeight: FontWeight.w700,
+          for (var i = 0; i < colors.length; i++)
+            Positioned(
+              left: i * 16,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: colors[i],
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.card, width: 2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  '호스트',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                Text(
-                  host.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -250,44 +179,42 @@ class _HostInline extends StatelessWidget {
 }
 
 class _CardMetaChip extends StatelessWidget {
-  const _CardMetaChip({required this.label, this.iconAsset});
+  const _CardMetaChip({required this.label, this.icon});
 
   final String label;
-  final String? iconAsset;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
+    final hasIcon = icon != null;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      height: 31,
+      width: hasIcon ? null : 65,
+      padding: EdgeInsets.fromLTRB(hasIcon ? 6 : 0, 5, hasIcon ? 10 : 0, 5),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: hasIcon ? MainAxisSize.min : MainAxisSize.max,
+        mainAxisAlignment: hasIcon
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.center,
         children: [
-          if (iconAsset != null) ...[
-            SvgPicture.asset(
-              iconAsset!,
-              width: 14,
-              height: 14,
-              colorFilter: const ColorFilter.mode(
-                AppColors.textMuted,
-                BlendMode.srcIn,
-              ),
-            ),
-            const SizedBox(width: 3),
+          if (hasIcon) ...[
+            Icon(icon, size: 14, color: AppColors.textSecondary),
+            const SizedBox(width: 5),
           ],
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 12,
-              height: 1.35,
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              height: 1.5,
               fontWeight: FontWeight.w500,
-              letterSpacing: -0.3,
             ),
           ),
         ],
@@ -310,7 +237,6 @@ class _SectionTitle extends StatelessWidget {
         fontSize: 18,
         height: 1.4,
         fontWeight: FontWeight.w600,
-        letterSpacing: -0.5,
       ),
     );
   }
@@ -324,10 +250,11 @@ class _HostSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 70.5,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
@@ -344,29 +271,16 @@ class _HostSummary extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  host.name,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 16,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '호스트',
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-              ],
+            child: Text(
+              host.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 16,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -375,28 +289,43 @@ class _HostSummary extends StatelessWidget {
   }
 }
 
-class _ReadonlyBox extends StatelessWidget {
-  const _ReadonlyBox({required this.text});
+class _ClaimBox extends StatelessWidget {
+  const _ClaimBox({required this.text});
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 16,
-          height: 1.5,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 53),
+          padding: const EdgeInsets.fromLTRB(46, 14, 18, 14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 16,
+              height: 1.5,
+            ),
+          ),
         ),
-      ),
+        const Positioned(
+          left: 14,
+          top: 15,
+          child: Icon(
+            Icons.format_quote_rounded,
+            color: AppColors.primarySoft,
+            size: 22,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -411,6 +340,7 @@ class _ReasonBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+      constraints: BoxConstraints(minHeight: text.length > 32 ? 76 : 52),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppColors.surface,
