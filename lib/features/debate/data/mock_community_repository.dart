@@ -60,22 +60,6 @@ class MockCommunityRepository {
       createdAt: DateTime(2026, 6, 17, 19, 30),
     ),
     Community(
-      id: 'room-4',
-      title: '매트릭스 빨간약을 먹을 것인가 파란약을 먹을 것인가',
-      topic: '불편한 진실과 안정적인 환상 중 무엇을 택해야 하는가?',
-      category: CommunityCategory.culture,
-      status: CommunityStatus.waiting,
-      host: const CommunityHost(name: '유나', avatarColor: 0xFF818E99),
-      activeDebaters: const [
-        Debater(name: '유나', side: DebateSide.con, avatarColor: 0xFF818E99),
-      ],
-      rounds: 2,
-      elapsedMinutes: 18,
-      observerCount: 1,
-      isPublic: true,
-      createdAt: DateTime(2026, 6, 17, 18, 40),
-    ),
-    Community(
       id: 'room-5',
       title: '남사친 여사친은 존재하는가',
       topic: '친밀한 이성 친구 관계는 안정적으로 지속될 수 있는가?',
@@ -91,6 +75,22 @@ class MockCommunityRepository {
       observerCount: 8,
       isPublic: true,
       createdAt: DateTime(2026, 6, 17, 18, 10),
+    ),
+    Community(
+      id: 'room-4',
+      title: '매트릭스 빨간약을 먹을 것인가 파란약을 먹을 것인가',
+      topic: '불편한 진실과 안정적인 환상 중 무엇을 택해야 하는가?',
+      category: CommunityCategory.culture,
+      status: CommunityStatus.waiting,
+      host: const CommunityHost(name: '유나', avatarColor: 0xFF818E99),
+      activeDebaters: const [
+        Debater(name: '유나', side: DebateSide.con, avatarColor: 0xFF818E99),
+      ],
+      rounds: 2,
+      elapsedMinutes: 18,
+      observerCount: 1,
+      isPublic: true,
+      createdAt: DateTime(2026, 6, 17, 18, 40),
     ),
   ];
 
