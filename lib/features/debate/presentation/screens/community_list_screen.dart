@@ -72,7 +72,7 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
                         ),
                         const SizedBox(height: 24),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -86,20 +86,30 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
                                   letterSpacing: -0.3,
                                 ),
                               ),
-                              TextButton.icon(
-                                onPressed: () {},
-                                iconAlignment: IconAlignment.end,
-                                icon: const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 16,
-                                ),
-                                label: const Text('추천순'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.textMuted,
-                                  textStyle: const TextStyle(
-                                    fontSize: 13,
-                                    height: 1.35,
-                                    letterSpacing: -0.5,
+                              InkWell(
+                                onTap: () {},
+                                borderRadius: BorderRadius.circular(6),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '추천순',
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 13,
+                                          height: 1.35,
+                                          fontWeight: FontWeight.w400,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: AppColors.textMuted,
+                                        size: 16,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

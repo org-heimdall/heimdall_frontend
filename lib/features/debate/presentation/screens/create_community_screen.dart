@@ -7,7 +7,6 @@ import '../../domain/entities/community.dart';
 import '../providers/community_providers.dart';
 import '../widgets/debate_tabs.dart';
 import '../widgets/heimdall_controls.dart';
-import '../widgets/heimdall_logo.dart';
 import '../widgets/heimdall_labeled_text_field.dart';
 
 class CreateCommunityScreen extends ConsumerStatefulWidget {
@@ -43,9 +42,18 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const HeimdallBackButton(),
+        toolbarHeight: 65,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          iconSize: 28,
+          color: AppColors.textMuted,
+          tooltip: '뒤로',
+        ),
+        leadingWidth: 44,
+        titleSpacing: 0,
         title: const Text(
-          '커뮤니티 생성',
+          '토론 커뮤니티 생성',
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 22,
@@ -126,12 +134,12 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
                     const SizedBox(height: 64),
                     HeimdallLabeledTextField(
                       controller: _claimController,
-                      label: '호스트 주장 *',
-                      hintText: '토론 주제에 대한 호스트 주장을 한 줄 요약해주세요.',
-                      validator: _required('호스트 주장을 입력하세요.'),
+                      label: '나의 주장 *',
+                      hintText: '토론 주제에 대한 나의 주장을 한 줄 요약해주세요.',
+                      validator: _required('나의 주장을 입력하세요.'),
                     ),
                     const SizedBox(height: 64),
-                    const _SectionLabel('호스트 근거'),
+                    const _SectionLabel('근거'),
                     const SizedBox(height: 16),
                     for (var i = 0; i < _reasonControllers.length; i++) ...[
                       _ReasonField(
@@ -267,6 +275,7 @@ class _RoundSelector extends StatelessWidget {
                 onPressed: onIncrement,
                 icon: Icons.keyboard_arrow_up_rounded,
               ),
+              const SizedBox(height: 8),
               Container(
                 width: 52,
                 height: 60,
@@ -286,6 +295,7 @@ class _RoundSelector extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
               _RoundStepperButton(
                 onPressed: onDecrement,
                 icon: Icons.keyboard_arrow_down_rounded,
@@ -338,12 +348,12 @@ class _RoundStepperButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 52,
-      height: 26,
+      height: 32,
       child: IconButton(
         onPressed: onPressed,
         icon: Icon(icon),
         color: AppColors.primarySoft,
-        iconSize: 24,
+        iconSize: 32,
         padding: EdgeInsets.zero,
         splashRadius: 20,
       ),
@@ -382,12 +392,17 @@ class _ReasonField extends StatelessWidget {
               color: AppColors.primarySoft,
               shape: BoxShape.circle,
             ),
-            child: Text(
-              '$index',
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$index',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 16,
+                  height: 1,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -429,19 +444,56 @@ class _AddReasonButton extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.textMuted),
-        ),
-        child: const Icon(
-          Icons.add_rounded,
+      child: CustomPaint(
+        painter: _DashedRoundedBorderPainter(
           color: AppColors.textMuted,
-          size: 24,
+          radius: 12,
+        ),
+        child: const SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: Icon(Icons.add_rounded, color: AppColors.textMuted, size: 24),
         ),
       ),
     );
+  }
+}
+
+class _DashedRoundedBorderPainter extends CustomPainter {
+  const _DashedRoundedBorderPainter({
+    required this.color,
+    required this.radius,
+  });
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dashWidth = 6.0;
+    const dashGap = 4.0;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
+      );
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+
+      while (distance < metric.length) {
+        final next = distance + dashWidth;
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance = next + dashGap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRoundedBorderPainter oldDelegate) {
+    return color != oldDelegate.color || radius != oldDelegate.radius;
   }
 }
