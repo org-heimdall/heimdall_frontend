@@ -12,9 +12,9 @@ import '../../domain/entities/community_user_profile.dart';
 import '../providers/community_chat_providers.dart';
 import '../providers/community_user_profile_providers.dart';
 import '../widgets/community_host_member.dart';
-import '../widgets/community_guest_member.dart';
 import '../widgets/community_opinion.dart';
 import '../widgets/debate_popup_sheet.dart';
+import '../widgets/observer_view.dart';
 
 class CommunityChatScreen extends ConsumerStatefulWidget {
   const CommunityChatScreen({
@@ -114,8 +114,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               community: widget.community,
               viewerRole: widget.viewerRole,
               onBack: () => Navigator.maybePop(context),
-              onWatch: () =>
-                  context.push('/communities/${widget.community.id}/debate'),
+              onWatch: _showObserverView,
               onMore: _showCommunityMembers,
             ),
             Expanded(
@@ -157,7 +156,6 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   }
 
   void _showCommunityMembers() {
-    const currentUserName = 'Username';
     final memberNames = <String>[
       widget.community.host.name,
       ...widget.community.activeDebaters
@@ -177,16 +175,6 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       barrierColor: Colors.black.withValues(alpha: 0.8),
       transitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        final isHost = widget.viewerRole == CommunityChatViewerRole.host;
-        final guestMemberNames = <String>[
-          currentUserName,
-          widget.community.host.name,
-          ...memberNames.where(
-            (name) =>
-                name != currentUserName && name != widget.community.host.name,
-          ),
-        ];
-
         return Align(
           alignment: Alignment.centerRight,
           child: ConstrainedBox(
@@ -194,26 +182,16 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
             child: SizedBox(
               width: MediaQuery.sizeOf(dialogContext).width - 74,
               height: double.infinity,
-              child: isHost
-                  ? CommunityMember(
-                      hostName: widget.community.host.name,
-                      memberNames: memberNames.take(7).toList(),
-                      onClose: () => Navigator.pop(dialogContext),
-                      showHostActions: true,
-                      onDeleteCommunity: () =>
-                          _showPanelActionFeedback('커뮤니티 삭제 기능은 준비 중입니다.'),
-                      onReport: () =>
-                          _showPanelActionFeedback('신고 기능은 준비 중입니다.'),
-                    )
-                  : CommunityGuestMember(
-                      userName: currentUserName,
-                      memberNames: guestMemberNames.take(7).toList(),
-                      onClose: () => Navigator.pop(dialogContext),
-                      onLeaveChat: () =>
-                          _showPanelActionFeedback('채팅방 나가기 기능은 준비 중입니다.'),
-                      onReport: () =>
-                          _showPanelActionFeedback('신고 기능은 준비 중입니다.'),
-                    ),
+              child: CommunityMember(
+                hostName: widget.community.host.name,
+                memberNames: memberNames.take(7).toList(),
+                onClose: () => Navigator.pop(dialogContext),
+                showHostActions:
+                    widget.viewerRole == CommunityChatViewerRole.host,
+                onDeleteCommunity: () =>
+                    _showHostActionFeedback('커뮤니티 삭제 기능은 준비 중입니다.'),
+                onReport: () => _showHostActionFeedback('신고 기능은 준비 중입니다.'),
+              ),
             ),
           ),
         );
@@ -230,10 +208,99 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     );
   }
 
-  void _showPanelActionFeedback(String message) {
+  void _showHostActionFeedback(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showObserverView() {
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '관전하기 닫기',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return SafeArea(
+          bottom: false,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 105),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 402),
+                child: ObserverView(
+                  items: _observerItems,
+                  onClose: () => Navigator.pop(dialogContext),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: SlideTransition(
+            position:
+                Tween<Offset>(
+                  begin: const Offset(0, -0.04),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  List<ObserverCommentItem> get _observerItems {
+    final opponent = widget.community.activeDebaters.firstWhere(
+      (debater) => debater.name != widget.community.host.name,
+      orElse: () => const Debater(
+        name: 'Username',
+        side: DebateSide.con,
+        avatarColor: 0xFFFF7B2F,
+      ),
+    );
+    final hostClaim = widget.community.hostClaim.isEmpty
+        ? '음모론이 아니라니까 그러네.\n내 주변에는 범죄자도 없고, 범죄도 안일어나니 경찰은 필요 없다는 발상과 다르지 않다.\n어이없는건 민경욱 투표지에서 수백여장이 이상한 투표지로 법원에서 가려졌음에도 당락 결정에 영향을 줄만한 숫자가 아니라고 기각시킨 것임.'
+        : [
+            widget.community.hostClaim,
+            ...widget.community.hostReasons,
+          ].join('\n');
+
+    return [
+      const ObserverCommentItem(
+        userName: 'Username',
+        content:
+            '궁금해서 그러는데 서버까면 뭐가 나옴?\n그냥 각 지역 검표 데이터 들어가 있는게 서버 아님? 여기서 부정선거 증거를 어떻게 찾음?\n윤어게인 말마따나 수백만표의 가짜 표를 CCTV 모르게, 참관인들 모르게, 중간에 내부 밀고자 한 명도 없는 세력이 고작 서버에 증거를 남긴다는',
+        likes: 12,
+        dislikes: 3,
+        avatarAsset: AppAssets.avatarRed,
+      ),
+      ObserverCommentItem(
+        userName: widget.community.host.name,
+        content: hostClaim,
+        likes: widget.community.observerCount > 1 ? 2 : 1,
+        dislikes: 0,
+        isHost: true,
+        avatarAsset: AppAssets.avatarBlue,
+      ),
+      ObserverCommentItem(
+        userName: opponent.name,
+        content: '상대 입장도 들어봐야 할 것 같아요. 지금 쟁점은 증거가 실제로 남는 구조인지부터 정리해야 합니다.',
+        likes: 4,
+        dislikes: 1,
+        avatarAsset: AppAssets.avatarRed,
+      ),
+    ];
   }
 
   Future<void> _showOpeningStatementSheet() async {
@@ -583,12 +650,12 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
                     widget.community.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-	                    style: const TextStyle(
-	                      color: AppColors.textSecondary,
-	                      fontSize: 21,
-	                      height: 1.4,
-	                      fontWeight: FontWeight.w600,
-	                    ),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 21,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -614,7 +681,7 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
           ),
           if (!_isDebaterPreviewCollapsed)
             Padding(
-	              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Stack(
                 children: [
                   Row(
@@ -627,16 +694,16 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
                         ),
                       ),
                       const SizedBox(
-	                          width: 24,
-	                          child: Text(
-	                            'VS',
-	                            textAlign: TextAlign.center,
-	                            style: TextStyle(
-	                              color: AppColors.textMuted,
-	                              fontSize: 15,
-	                              height: 1.4,
-	                              fontWeight: FontWeight.w600,
-	                            ),
+                        width: 24,
+                        child: Text(
+                          'VS',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 15,
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       Expanded(
@@ -662,7 +729,7 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
             ),
           if (!_isDebaterPreviewCollapsed && widget.viewerRole.canWatchDebate)
             Padding(
-	              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: _WatchDebateButton(
                 enabled: hasOpponent,
                 onTap: widget.onWatch,
@@ -833,8 +900,8 @@ class _DebaterPreview extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-	        width: 40,
-	        height: 40,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: active ? null : AppColors.surfaceElevated,
             shape: BoxShape.circle,
@@ -844,7 +911,7 @@ class _DebaterPreview extends StatelessWidget {
               ? Image.asset(avatarAsset!, fit: BoxFit.cover)
               : const SizedBox.shrink(),
         ),
-	        const SizedBox(height: 5),
+        const SizedBox(height: 5),
         Text(
           name,
           maxLines: 1,
@@ -852,9 +919,9 @@ class _DebaterPreview extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: active ? AppColors.textSecondary : AppColors.textMuted,
-	            fontSize: 14,
-	            height: 1.5,
-	            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            height: 1.5,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
@@ -891,24 +958,24 @@ class _ChatMessageRow extends StatelessWidget {
               message.authorName,
               style: const TextStyle(
                 color: AppColors.textSecondary,
-	                fontSize: 11,
-	                height: 1.2,
+                fontSize: 11,
+                height: 1.2,
               ),
             ),
-	            const SizedBox(height: 6),
+            const SizedBox(height: 6),
           ],
           Container(
-	            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: isMine ? AppColors.primary : AppColors.surfaceElevated,
-	              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               message.text,
               style: const TextStyle(
                 color: AppColors.textSecondary,
-	                fontSize: 15,
-	                height: 1.6,
+                fontSize: 15,
+                height: 1.6,
               ),
             ),
           ),
@@ -937,7 +1004,7 @@ class _ChatMessageRow extends StatelessWidget {
     );
 
     return Padding(
-	      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: isMine
@@ -1095,7 +1162,7 @@ class _WatchRoomInput extends StatelessWidget {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
 
     return Container(
-	      padding: EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomPadding),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomPadding),
       color: AppColors.background,
       child: Row(
         children: [
@@ -1105,17 +1172,17 @@ class _WatchRoomInput extends StatelessWidget {
             foreground: AppColors.background,
             onTap: onOpeningStatement,
           ),
-	          const SizedBox(width: 8),
+          const SizedBox(width: 8),
           _CircleIconButton(
             icon: Icons.image_outlined,
             color: AppColors.surfaceElevated,
             foreground: AppColors.textSecondary,
             onTap: () {},
           ),
-	          const SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Container(
-	              height: 36,
+              height: 36,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: AppColors.surfaceElevated,
@@ -1128,8 +1195,8 @@ class _WatchRoomInput extends StatelessWidget {
                       controller: controller,
                       style: const TextStyle(
                         color: AppColors.textSecondary,
-	                        fontSize: 14,
-	                        height: 1.45,
+                        fontSize: 14,
+                        height: 1.45,
                       ),
                       decoration: const InputDecoration(
                         isDense: true,
@@ -1141,8 +1208,8 @@ class _WatchRoomInput extends StatelessWidget {
                         hintText: '관전방에서 대화하기',
                         hintStyle: TextStyle(
                           color: AppColors.textMuted,
-	                          fontSize: 14,
-	                          height: 1.45,
+                          fontSize: 14,
+                          height: 1.45,
                         ),
                       ),
                       onSubmitted: (_) => onSend(),
@@ -1154,7 +1221,7 @@ class _WatchRoomInput extends StatelessWidget {
                     child: const Icon(
                       Icons.mic_rounded,
                       color: AppColors.textMuted,
-	                      size: 22,
+                      size: 22,
                     ),
                   ),
                 ],
@@ -1184,10 +1251,10 @@ class _CircleIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-	      borderRadius: BorderRadius.circular(18),
-	      child: Container(
-	        width: 36,
-	        height: 36,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           color: onTap == null ? AppColors.surfaceElevated : color,
           shape: BoxShape.circle,
@@ -1195,7 +1262,7 @@ class _CircleIconButton extends StatelessWidget {
         child: Icon(
           icon,
           color: onTap == null ? AppColors.textMuted : foreground,
-	          size: 23,
+          size: 23,
         ),
       ),
     );

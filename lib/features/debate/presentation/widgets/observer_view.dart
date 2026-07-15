@@ -11,49 +11,54 @@ class ObserverView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 402,
-      height: 370,
-      decoration: BoxDecoration(
-        color: const Color(0xFF12161A),
-        borderRadius: BorderRadius.circular(20),
-        border: const Border(
-          bottom: BorderSide(color: Color(0x33000000), width: 10),
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: double.infinity,
+        height: 370,
+        decoration: BoxDecoration(
+          color: const Color(0xFF12161A),
+          borderRadius: BorderRadius.circular(20),
+          border: const Border(
+            bottom: BorderSide(color: Color(0x33000000), width: 10),
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          ListView.separated(
-            padding: const EdgeInsets.fromLTRB(11, 32, 23, 28),
-            itemCount: items.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 22),
-            itemBuilder: (context, index) {
-              return _ObserverCommentTile(item: items[index]);
-            },
-          ),
-          Positioned(
-            right: 16,
-            top: 16,
-            child: IconButton(
-              onPressed: onClose,
-              icon: const Icon(Icons.close_rounded),
-              color: AppColors.accent,
-              tooltip: '닫기',
+        child: Stack(
+          children: [
+            ListView.separated(
+              padding: const EdgeInsets.fromLTRB(11, 32, 23, 28),
+              itemCount: items.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 22),
+              itemBuilder: (context, index) {
+                return _ObserverCommentTile(item: items[index]);
+              },
             ),
-          ),
-          Positioned(
-            left: 160,
-            right: 160,
-            bottom: 4,
-            child: Container(
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.textMuted,
-                borderRadius: BorderRadius.circular(5),
+            Positioned(
+              right: 16,
+              top: 16,
+              child: IconButton(
+                onPressed: onClose,
+                icon: const Icon(Icons.close_rounded),
+                color: AppColors.accent,
+                tooltip: '닫기',
               ),
             ),
-          ),
-        ],
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Container(
+                  width: 81,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.textMuted,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
