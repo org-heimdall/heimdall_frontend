@@ -56,3 +56,19 @@ final communitiesProvider = Provider<List<Community>>((ref) {
     query: filter.query,
   );
 });
+
+class EnteredCommunityNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    return const {};
+  }
+
+  void markEntered(String communityId) {
+    state = {...state, communityId};
+  }
+}
+
+final enteredCommunityProvider =
+    NotifierProvider<EnteredCommunityNotifier, Set<String>>(
+      EnteredCommunityNotifier.new,
+    );

@@ -113,7 +113,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
             _WatchRoomHeader(
               community: widget.community,
               viewerRole: widget.viewerRole,
-              onBack: () => Navigator.maybePop(context),
+              onBack: _handleBack,
               onWatch: _showObserverView,
               onMore: _showCommunityMembers,
             ),
@@ -153,6 +153,14 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
         ),
       ),
     );
+  }
+
+  void _handleBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+      return;
+    }
+    context.go('/');
   }
 
   void _showCommunityMembers() {

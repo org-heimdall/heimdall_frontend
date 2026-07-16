@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/community.dart';
+import '../providers/community_providers.dart';
 import '../widgets/community_status_label.dart';
 import '../widgets/heimdall_controls.dart';
 import '../widgets/heimdall_logo.dart';
 
-class CommunityDetailScreen extends StatelessWidget {
+class CommunityDetailScreen extends ConsumerWidget {
   const CommunityDetailScreen({required this.community, super.key});
 
   final Community community;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hostReasons = community.hostReasons.isEmpty
         ? ['호스트가 등록한 근거가 없습니다.']
         : community.hostReasons;
@@ -62,7 +64,13 @@ class CommunityDetailScreen extends StatelessWidget {
       ),
       bottomNavigationBar: HeimdallBottomActionBar(
         label: '커뮤니티 입장',
-        onPressed: () => context.push('/communities/${community.id}/chat'),
+        onPressed: () {
+          ref.read(enteredCommunityProvider.notifier).markEntered(community.id);
+          final location = community.isOwnedByCurrentUser
+              ? '/communities/${community.id}/chat?role=host'
+              : '/communities/${community.id}/chat';
+          context.pushReplacement(location);
+        },
         includeSafeArea: false,
       ),
     );

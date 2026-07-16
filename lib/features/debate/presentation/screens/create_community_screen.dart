@@ -195,7 +195,8 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
               .toList(),
         );
     ref.invalidate(communitiesProvider);
-    context.go('/communities/${room.id}');
+    ref.read(enteredCommunityProvider.notifier).markEntered(room.id);
+    context.pushReplacement('/communities/${room.id}/chat?role=host');
   }
 }
 

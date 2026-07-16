@@ -40,7 +40,14 @@ class _DebateRoomState extends State<DebateRoom> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _messageController.addListener(_handleMessageChanged);
+  }
+
+  @override
   void dispose() {
+    _messageController.removeListener(_handleMessageChanged);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -109,6 +116,8 @@ class _DebateRoomState extends State<DebateRoom> {
                   _DebateTurnControl(
                     turn: currentTurn,
                     enabled: widget.isHost,
+                    characterCount: _messageController.text.characters.length,
+                    maxCharacterCount: _maxPositionLength,
                     onInfoTap: _showDebateProgress,
                     onSkip: () {},
                   ),
@@ -127,6 +136,13 @@ class _DebateRoomState extends State<DebateRoom> {
         ),
       ),
     );
+  }
+
+  void _handleMessageChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
   }
 
   Debater get _hostDebater {
@@ -577,12 +593,16 @@ class _DebateTurnControl extends StatelessWidget {
   const _DebateTurnControl({
     required this.turn,
     required this.enabled,
+    required this.characterCount,
+    required this.maxCharacterCount,
     required this.onInfoTap,
     required this.onSkip,
   });
 
   final DebateTurn turn;
   final bool enabled;
+  final int characterCount;
+  final int maxCharacterCount;
   final VoidCallback onInfoTap;
   final VoidCallback onSkip;
 
@@ -624,17 +644,36 @@ class _DebateTurnControl extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '${turn.speaker} ${turn.stage.label}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: -0.5,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${turn.speaker} ${turn.stage.label}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: foreground,
+                          fontSize: 13,
+                          height: 1.35,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$characterCount/$maxCharacterCount',
+                      style: TextStyle(
+                        color: characterCount >= maxCharacterCount
+                            ? AppColors.primarySoft
+                            : AppColors.textMuted,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 5),
                 Row(

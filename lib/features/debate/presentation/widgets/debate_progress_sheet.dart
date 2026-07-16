@@ -21,8 +21,21 @@ class DebateProgressSheet extends StatelessWidget {
   final int currentStepIndex;
   final VoidCallback onClose;
 
+  static const double _dotSize = 6;
+  static const double _rowHeight = 21;
+  static const double _rowGap = 16;
+  static const double _rowPitch = _rowHeight + _rowGap;
+  static const double _dotTop = (_rowHeight - _dotSize) / 2;
+
   @override
   Widget build(BuildContext context) {
+    final railHeight = steps.isEmpty
+        ? 0.0
+        : ((steps.length - 1) * _rowPitch) + _dotSize;
+    final completedRailHeight = steps.isEmpty
+        ? 0.0
+        : (currentStepIndex.clamp(0, steps.length - 1) * _rowPitch) + _dotSize;
+
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16),
       backgroundColor: Colors.transparent,
@@ -70,26 +83,26 @@ class DebateProgressSheet extends StatelessWidget {
                 child: Stack(
                   children: [
                     Positioned(
-                      left: 2,
-                      top: 6,
-                      bottom: 22,
+                      left: 0,
+                      top: _dotTop,
                       child: _ProgressRail(
-                        stepsCount: steps.length,
-                        currentStepIndex: currentStepIndex,
+                        height: railHeight,
+                        completedHeight: completedRailHeight,
                       ),
                     ),
-                    ListView.separated(
-                      padding: EdgeInsets.zero,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: steps.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        return _ProgressStepRow(
-                          step: steps[index],
-                          state: _stateFor(index),
-                        );
-                      },
+                    Column(
+                      children: [
+                        for (var index = 0; index < steps.length; index++) ...[
+                          _ProgressStepRow(
+                            step: steps[index],
+                            state: _stateFor(index),
+                            height: _rowHeight,
+                            dotSize: _dotSize,
+                          ),
+                          if (index != steps.length - 1)
+                            const SizedBox(height: _rowGap),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -113,48 +126,36 @@ class DebateProgressSheet extends StatelessWidget {
 }
 
 class _ProgressRail extends StatelessWidget {
-  const _ProgressRail({
-    required this.stepsCount,
-    required this.currentStepIndex,
-  });
+  const _ProgressRail({required this.height, required this.completedHeight});
 
-  final int stepsCount;
-  final int currentStepIndex;
+  final double height;
+  final double completedHeight;
 
   @override
   Widget build(BuildContext context) {
-    final completedRatio = stepsCount <= 1
-        ? 0.0
-        : (currentStepIndex / (stepsCount - 1)).clamp(0.0, 1.0);
-
     return SizedBox(
       width: 6,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final completedHeight = constraints.maxHeight * completedRatio;
-
-          return Stack(
-            alignment: Alignment.topCenter,
-            children: [
-              Container(
-                width: 6,
-                height: constraints.maxHeight,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              Container(
-                width: 6,
-                height: completedHeight,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF42E3FF),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-            ],
-          );
-        },
+      height: height,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          Container(
+            width: 6,
+            height: height,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(30),
+            ),
+          ),
+          Container(
+            width: 6,
+            height: completedHeight.clamp(0.0, height),
+            decoration: BoxDecoration(
+              color: const Color(0xFF42E3FF),
+              borderRadius: BorderRadius.circular(30),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -163,10 +164,17 @@ class _ProgressRail extends StatelessWidget {
 enum _ProgressStepState { completed, current, pending }
 
 class _ProgressStepRow extends StatelessWidget {
-  const _ProgressStepRow({required this.step, required this.state});
+  const _ProgressStepRow({
+    required this.step,
+    required this.state,
+    required this.height,
+    required this.dotSize,
+  });
 
   final DebateProgressStep step;
   final _ProgressStepState state;
+  final double height;
+  final double dotSize;
 
   @override
   Widget build(BuildContext context) {
@@ -181,23 +189,41 @@ class _ProgressStepRow extends StatelessWidget {
       _ProgressStepState.pending => AppColors.textMuted,
     };
 
-    return Row(
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  step.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+    return SizedBox(
+      height: height,
+      child: Row(
+        children: [
+          SizedBox(
+            width: dotSize,
+            height: dotSize,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    step.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 14,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  step.durationLabel,
                   style: TextStyle(
                     color: color,
                     fontSize: 14,
@@ -205,21 +231,11 @@ class _ProgressStepRow extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                step.durationLabel,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 14,
-                  height: 1.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
