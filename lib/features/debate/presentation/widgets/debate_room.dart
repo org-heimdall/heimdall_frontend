@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -26,6 +28,7 @@ class _DebateRoomState extends State<DebateRoom> {
 
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  Timer? _limitNoticeTimer;
   bool _showLimitNotice = false;
   final List<_DebateRoomMessage> _messages = [
     _DebateRoomMessage(authorName: '나', text: '토마토맛 토도 결국 토마토다.', isMine: true),
@@ -48,6 +51,7 @@ class _DebateRoomState extends State<DebateRoom> {
   @override
   void dispose() {
     _messageController.removeListener(_handleMessageChanged);
+    _limitNoticeTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -132,6 +136,7 @@ class _DebateRoomState extends State<DebateRoom> {
                 ],
               ),
             ),
+            _DebateLimitToast(visible: _showLimitNotice),
           ],
         ),
       ),
@@ -200,14 +205,11 @@ class _DebateRoomState extends State<DebateRoom> {
   }
 
   void _showMessageLimitNotice() {
-    if (_showLimitNotice) {
-      return;
-    }
-
+    _limitNoticeTimer?.cancel();
     setState(() {
       _showLimitNotice = true;
     });
-    Future<void>.delayed(const Duration(milliseconds: 1800), () {
+    _limitNoticeTimer = Timer(const Duration(seconds: 3), () {
       if (!mounted) {
         return;
       }
@@ -760,15 +762,6 @@ class _DebateRoomInput extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 160),
-            child: _DebateLimitNotice(
-              key: ValueKey<bool>(
-                controller.text.characters.length >= maxLength,
-              ),
-              visible: controller.text.characters.length >= maxLength,
-            ),
-          ),
           Row(
             children: [
               _InputIconButton(
@@ -841,42 +834,66 @@ class _DebateRoomInput extends StatelessWidget {
   }
 }
 
-class _DebateLimitNotice extends StatelessWidget {
-  const _DebateLimitNotice({required this.visible, super.key});
+class _DebateLimitToast extends StatelessWidget {
+  const _DebateLimitToast({required this.visible});
 
   final bool visible;
 
   @override
   Widget build(BuildContext context) {
-    if (!visible) {
-      return const SizedBox.shrink();
-    }
+    final bottomOffset = 134 + MediaQuery.paddingOf(context).bottom;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: AppColors.primarySoft,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_rounded, size: 18, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text(
-              '이번 턴에서는 더이상 메시지를 보낼 수 없습니다.',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                height: 1.45,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: bottomOffset,
+      child: IgnorePointer(
+        child: AnimatedSlide(
+          offset: visible ? Offset.zero : const Offset(0, 0.16),
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          child: AnimatedOpacity(
+            opacity: visible ? 1 : 0,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            child: Center(
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.24),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '이번 턴에서는 더이상 메시지를 보낼 수 없습니다.',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
