@@ -24,6 +24,7 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
   Widget build(BuildContext context) {
     final filter = ref.watch(communityFilterProvider);
     final rooms = ref.watch(communitiesProvider);
+    final enteredCommunityIds = ref.watch(enteredCommunityProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -142,8 +143,10 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
                         final community = rooms[index];
                         return CommunityCard(
                           community: community,
-                          onTap: () =>
-                              context.push('/communities/${community.id}'),
+                          onTap: () => _openCommunity(
+                            community,
+                            enteredCommunityIds.contains(community.id),
+                          ),
                         );
                       },
                     ),
@@ -185,5 +188,17 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
         ),
       ),
     );
+  }
+
+  void _openCommunity(Community community, bool hasEntered) {
+    if (!hasEntered) {
+      context.push('/communities/${community.id}');
+      return;
+    }
+
+    final location = community.isOwnedByCurrentUser
+        ? '/communities/${community.id}/chat?role=host'
+        : '/communities/${community.id}/chat';
+    context.push(location);
   }
 }
