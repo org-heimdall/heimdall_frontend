@@ -14,6 +14,40 @@ class DebateForfeitDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return DebateConfirmationDialog(
+      icon: Icons.error_outline_rounded,
+      title: '정말 기권하시겠습니까?',
+      description: '이대로 토론장을 나가시면 즉시 패배 처리됩니다.',
+      cancelLabel: '아니오',
+      confirmLabel: '나가기',
+      onCancel: onCancel,
+      onConfirm: onForfeit,
+    );
+  }
+}
+
+class DebateConfirmationDialog extends StatelessWidget {
+  const DebateConfirmationDialog({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.cancelLabel,
+    required this.confirmLabel,
+    required this.onCancel,
+    required this.onConfirm,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final String cancelLabel;
+  final String confirmLabel;
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
       backgroundColor: Colors.transparent,
@@ -35,15 +69,11 @@ class DebateForfeitDialog extends StatelessWidget {
                   color: AppColors.primarySoft,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.error_outline_rounded,
-                  color: AppColors.primary,
-                  size: 32,
-                ),
+                child: Icon(icon, color: AppColors.primary, size: 32),
               ),
               const SizedBox(height: 20),
-              const Text(
-                '정말 기권하시겠습니까?',
+              Text(
+                title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppColors.textSecondary,
@@ -54,8 +84,8 @@ class DebateForfeitDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                '이대로 토론장을 나가시면 즉시 패배 처리됩니다.',
+              Text(
+                description,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFFA7B4BF),
@@ -69,7 +99,7 @@ class DebateForfeitDialog extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _DialogActionButton(
-                      label: '아니오',
+                      label: cancelLabel,
                       backgroundColor: AppColors.surfaceElevated,
                       foregroundColor: AppColors.textMuted,
                       onTap: onCancel,
@@ -78,10 +108,10 @@ class DebateForfeitDialog extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _DialogActionButton(
-                      label: '나가기',
+                      label: confirmLabel,
                       backgroundColor: AppColors.primarySoft,
                       foregroundColor: AppColors.primary,
-                      onTap: onForfeit,
+                      onTap: onConfirm,
                     ),
                   ),
                 ],

@@ -1,76 +1,113 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/community.dart';
+import '../../domain/entities/community_chat.dart';
+import '../../domain/entities/debate_chat_realtime.dart';
 import '../../domain/entities/debate_turn.dart';
+import '../controllers/chat_message_timeline.dart';
+import '../providers/debate_chat_providers.dart';
+import 'chat_composer.dart';
+import 'chat_message_tile.dart';
 import 'debate_forfeit_dialog.dart';
 import 'debate_progress_sheet.dart';
 import 'debate_popup_sheet.dart';
 import 'debate_user_profile.dart';
 import 'discussion_guide.dart';
 
-class DebateRoom extends StatefulWidget {
-  const DebateRoom({required this.community, this.isHost = true, super.key});
+class DebateRoom extends ConsumerStatefulWidget {
+  const DebateRoom({
+    required this.community,
+    required this.debateId,
+    required this.initialDebateDetail,
+    this.isHost = true,
+    super.key,
+  });
 
   final Community community;
+  final String debateId;
+  final DebateDetail initialDebateDetail;
   final bool isHost;
 
   @override
-  State<DebateRoom> createState() => _DebateRoomState();
+  ConsumerState<DebateRoom> createState() => _DebateRoomState();
 }
 
-class _DebateRoomState extends State<DebateRoom> {
-  static const _maxPositionLength = 200;
+class _DebateRoomState extends ConsumerState<DebateRoom> {
+  static const _fallbackMaxTurnCharacterCount = 1000;
 
   final _messageController = TextEditingController();
+  final _messageFocusNode = FocusNode();
   final _scrollController = ScrollController();
+  final Map<String, String> _messageCommandIds = {};
+  final Map<String, int> _currentDraftCharacterCounts = {};
   Timer? _limitNoticeTimer;
+  Timer? _turnPassedNoticeTimer;
+  Timer? _finalizeTimeoutTimer;
+  Timer? _turnClockTimer;
+  Timer? _totalClockTimer;
+  Timer? _resultPollTimer;
   bool _showLimitNotice = false;
-  final List<_DebateRoomMessage> _messages = [
-    _DebateRoomMessage(authorName: '나', text: '토마토맛 토도 결국 토마토다.', isMine: true),
-    _DebateRoomMessage(
-      authorName: 'Username',
-      text: '토마토맛 토는 토마토의 상큼한 향이 나기 때문에 먹을만하다.',
-    ),
-    _DebateRoomMessage(
-      authorName: 'Username',
-      text: '토마토맛 토는 토마토의 상큼한 향이 나기 때문에 먹을만하다.',
-    ),
-  ];
+  bool _showTurnPassedNotice = false;
+  bool _isFinalizingTurn = false;
+  bool _hasReceivedSnapshot = false;
+  bool _isDebateFinalized = false;
+  String? _pendingFinalizeCommandId;
+  DebateChatCurrentTurn? _serverCurrentTurn;
+  DebateDetail? _debateDetail;
+  bool _isExpired = false;
+  bool _endDialogShown = false;
+  late final ChatMessageTimeline _timeline;
 
   @override
   void initState() {
     super.initState();
+    _debateDetail = widget.initialDebateDetail;
+    _timeline = ChatMessageTimeline()..addListener(_handleTimelineChanged);
     _messageController.addListener(_handleMessageChanged);
+    _messageFocusNode.addListener(_handleInputFocusChanged);
+    unawaited(_loadDebateDetail());
   }
 
   @override
   void dispose() {
+    _timeline.removeListener(_handleTimelineChanged);
+    _timeline.dispose();
     _messageController.removeListener(_handleMessageChanged);
+    _messageFocusNode.removeListener(_handleInputFocusChanged);
     _limitNoticeTimer?.cancel();
+    _turnPassedNoticeTimer?.cancel();
+    _finalizeTimeoutTimer?.cancel();
+    _turnClockTimer?.cancel();
+    _totalClockTimer?.cancel();
+    _resultPollTimer?.cancel();
     _messageController.dispose();
+    _messageFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final host = _hostDebater;
-    final opponent = _opponentDebater;
-    final currentTurn = DebateTurn(
-      stage: DebateStage.opening,
-      side: host.side,
-      speaker: host.name,
-      content: '',
-      remainingSeconds: 168,
+    ref.listen<AsyncValue<DebateChatRealtimeEvent>>(
+      debateChatEventsProvider(widget.debateId),
+      (previous, next) => next.whenData(_handleRealtimeEvent),
     );
 
+    final host = _hostDebater;
+    final opponent = _opponentDebater;
+    final currentTurn = _displayCurrentTurn(host, opponent);
+    final canAct = _canActOnCurrentTurn;
+
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: DecoratedBox(
         decoration: const BoxDecoration(
@@ -96,18 +133,25 @@ class _DebateRoomState extends State<DebateRoom> {
                     title: widget.community.title,
                     hostName: host.name,
                     opponentName: opponent.name,
-                    remainingLabel: '15:54',
+                    remainingLabel: _totalRemainingLabel,
                     onOpponentTap: _showOpponentOpeningStatement,
                     onBack: _showForfeitDialog,
                   ),
                   Expanded(
                     child: ListView(
                       controller: _scrollController,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.only(top: 12, bottom: 18),
                       children: [
                         const DiscussionGuide(),
-                        for (final message in _messages)
-                          _DebateRoomMessageRow(message: message),
+                        for (final message in _timeline.orderedMessages)
+                          ChatMessageTile(
+                            message: message,
+                            isMine: message.authorId == 'me',
+                            avatar: const _DebateAvatar(),
+                            onRetry: () => _retryMessage(message),
+                          ),
                         DiscussionGuide(
                           lines: [
                             '두 세계가 연결되었습니다. 예의를 갖추어 토론에 임하세요.',
@@ -119,24 +163,46 @@ class _DebateRoomState extends State<DebateRoom> {
                   ),
                   _DebateTurnControl(
                     turn: currentTurn,
-                    enabled: widget.isHost,
-                    characterCount: _messageController.text.characters.length,
-                    maxCharacterCount: _maxPositionLength,
+                    enabled: canAct && !_timeline.hasPendingMessages,
+                    isSubmitting: _isFinalizingTurn,
+                    characterCount: _currentTurnCharacterCount,
+                    maxCharacterCount: _maxTurnCharacterCount,
                     onInfoTap: _showDebateProgress,
-                    onSkip: () {},
+                    onSkip: _confirmFinalizeCurrentTurn,
                   ),
-                  _DebateRoomInput(
+                  ChatComposer(
                     controller: _messageController,
-                    enabled: widget.isHost,
+                    focusNode: _messageFocusNode,
+                    enabled:
+                        canAct &&
+                        !_isFinalizingTurn &&
+                        _remainingTurnCharacterCount > 0,
                     hintText: '${currentTurn.stage.label} 입력',
-                    maxLength: _maxPositionLength,
+                    maxLength: _remainingTurnCharacterCount > 0
+                        ? _remainingTurnCharacterCount
+                        : null,
                     onLimitReached: _showMessageLimitNotice,
                     onSend: _sendMessage,
+                    leading: [
+                      _InputIconButton(
+                        icon: Icons.image_outlined,
+                        onTap: canAct && !_isFinalizingTurn ? () {} : null,
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            _DebateLimitToast(visible: _showLimitNotice),
+            _DebateToast(
+              visible: _showLimitNotice,
+              icon: Icons.error_rounded,
+              message: '이번 턴에서는 더이상 메시지를 보낼 수 없습니다.',
+            ),
+            _DebateToast(
+              visible: _showTurnPassedNotice,
+              icon: Icons.check_circle_rounded,
+              message: '상대방에게 턴을 넘겼습니다.',
+            ),
           ],
         ),
       ),
@@ -150,7 +216,33 @@ class _DebateRoomState extends State<DebateRoom> {
     setState(() {});
   }
 
+  void _handleTimelineChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _handleInputFocusChanged() {
+    if (!_messageFocusNode.hasFocus) {
+      return;
+    }
+
+    Future<void>.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        _scrollToLatestMessage();
+      }
+    });
+  }
+
   Debater get _hostDebater {
+    final detail = _debateDetail;
+    if (detail != null) {
+      return Debater(
+        name: detail.sideASpeaker.displayName,
+        side: DebateSide.pro,
+        avatarColor: 0xFF5659FF,
+      );
+    }
     return widget.community.activeDebaters.firstWhere(
       (debater) => debater.name == widget.community.host.name,
       orElse: () => Debater(
@@ -162,6 +254,14 @@ class _DebateRoomState extends State<DebateRoom> {
   }
 
   Debater get _opponentDebater {
+    final detail = _debateDetail;
+    if (detail != null) {
+      return Debater(
+        name: detail.sideBSpeaker.displayName,
+        side: DebateSide.con,
+        avatarColor: 0xFFFF7B2F,
+      );
+    }
     return widget.community.activeDebaters.firstWhere(
       (debater) => debater.name != widget.community.host.name,
       orElse: () => const Debater(
@@ -172,28 +272,476 @@ class _DebateRoomState extends State<DebateRoom> {
     );
   }
 
-  void _sendMessage() {
+  String? get _localWireSide => _debateDetail?.viewerSide;
+
+  bool get _canActOnCurrentTurn {
+    if (_localWireSide == null ||
+        _isExpired ||
+        _isFinalizingTurn ||
+        _isDebateFinalized) {
+      return false;
+    }
+    if (!_hasReceivedSnapshot) {
+      return false;
+    }
+    return _serverCurrentTurn?.turnSide == _localWireSide;
+  }
+
+  int get _confirmedTurnCharacterCount =>
+      _currentDraftCharacterCounts.values.fold(0, (sum, value) => sum + value);
+
+  int get _maxTurnCharacterCount =>
+      _serverCurrentTurn?.maxTotalCharacters ?? _fallbackMaxTurnCharacterCount;
+
+  int get _currentTurnCharacterCount =>
+      _confirmedTurnCharacterCount + _messageController.text.characters.length;
+
+  int get _remainingTurnCharacterCount =>
+      (_maxTurnCharacterCount - _confirmedTurnCharacterCount).clamp(
+        0,
+        _maxTurnCharacterCount,
+      );
+
+  DebateTurn _displayCurrentTurn(Debater host, Debater opponent) {
+    final turn = _serverCurrentTurn;
+    if (turn == null) {
+      return DebateTurn(
+        stage: DebateStage.opening,
+        side: host.side,
+        speaker: host.name,
+        content: '',
+        remainingSeconds: _hasReceivedSnapshot ? 0 : 90,
+      );
+    }
+
+    final isSideA = turn.turnSide == 'SIDE_A';
+    final speaker = isSideA ? host : opponent;
+    final elapsedSeconds = DateTime.now().difference(turn.startedAt).inSeconds;
+    return DebateTurn(
+      stage: switch (turn.phase) {
+        'OPENING' => DebateStage.opening,
+        'REBUTTAL_QUESTION' => DebateStage.rebuttalQuestion,
+        'CLOSING' => DebateStage.closing,
+        _ => DebateStage.opening,
+      },
+      side: isSideA ? DebateSide.pro : DebateSide.con,
+      speaker: speaker.name,
+      content: '',
+      remainingSeconds: (turn.maxDurationSeconds - elapsedSeconds).clamp(
+        0,
+        turn.maxDurationSeconds,
+      ),
+    );
+  }
+
+  Future<void> _sendMessage() async {
+    if (!_canActOnCurrentTurn) {
+      return;
+    }
     final text = _messageController.text.trim();
     if (text.isEmpty) {
       return;
     }
-    if (text.characters.length > _maxPositionLength) {
+    if (_confirmedTurnCharacterCount + text.characters.length >
+        _maxTurnCharacterCount) {
       _showMessageLimitNotice();
       return;
     }
 
+    _messageController.clear();
+    await _sendText(text);
+  }
+
+  Future<void> _sendText(String text) async {
+    final clientMessageId = 'client-${DateTime.now().microsecondsSinceEpoch}';
+    final commandId = 'message-${DateTime.now().microsecondsSinceEpoch}';
+    final pendingMessage = CommunityChatMessage(
+      id: clientMessageId,
+      communityId: widget.debateId,
+      clientMessageId: clientMessageId,
+      authorId: 'me',
+      authorName: '나',
+      text: text,
+      createdAt: DateTime.now(),
+      deliveryStatus: CommunityChatMessageDeliveryStatus.pending,
+    );
+
+    _timeline.addPending(pendingMessage);
+    _currentDraftCharacterCounts[clientMessageId] = text.characters.length;
+    _messageCommandIds[commandId] = clientMessageId;
+    HapticFeedback.selectionClick();
+    _messageFocusNode.requestFocus();
+    _scrollToLatestMessage();
+
+    try {
+      await ref
+          .read(debateChatCommandServiceProvider)
+          .sendMessage(
+            debateId: widget.debateId,
+            commandId: commandId,
+            text: pendingMessage.text,
+            clientMessageId: clientMessageId,
+          );
+    } on Object {
+      _messageCommandIds.remove(commandId);
+      _currentDraftCharacterCounts.remove(clientMessageId);
+      if (!mounted) {
+        return;
+      }
+      _timeline.markFailed(clientMessageId);
+      _scrollToLatestMessage();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('메시지를 보내지 못했습니다.')));
+    }
+  }
+
+  Future<void> _retryMessage(CommunityChatMessage failedMessage) async {
+    if (failedMessage.deliveryStatus !=
+        CommunityChatMessageDeliveryStatus.failed) {
+      return;
+    }
+    _timeline.removeById(failedMessage.id);
+    await _sendText(failedMessage.text);
+  }
+
+  Future<void> _confirmFinalizeCurrentTurn() async {
+    if (!_canActOnCurrentTurn || _timeline.hasPendingMessages) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (dialogContext) => const _TurnFinalizeDialog(),
+    );
+    if (confirmed == true && mounted) {
+      await _finalizeCurrentTurn();
+    }
+  }
+
+  Future<void> _finalizeCurrentTurn() async {
+    if (!_canActOnCurrentTurn || _timeline.hasPendingMessages) {
+      return;
+    }
+
+    final commandId = 'finalize-${DateTime.now().microsecondsSinceEpoch}';
+
     setState(() {
-      _messages.add(
-        _DebateRoomMessage(
-          authorName: widget.community.host.name,
-          text: text,
-          isMine: true,
+      _isFinalizingTurn = true;
+      _pendingFinalizeCommandId = commandId;
+    });
+    _messageFocusNode.unfocus();
+    _startFinalizeTimeout(commandId);
+
+    try {
+      await ref
+          .read(debateChatCommandServiceProvider)
+          .finalizeTurn(debateId: widget.debateId, commandId: commandId);
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _clearFinalizePending();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_finalizeErrorMessage(error))));
+    }
+  }
+
+  void _handleRealtimeEvent(DebateChatRealtimeEvent event) {
+    if (!mounted || event.debateId != widget.debateId) {
+      return;
+    }
+
+    switch (event.type) {
+      case DebateChatRealtimeEventType.connectionRestored:
+        _currentDraftCharacterCounts.clear();
+        _applyCurrentTurn(event.currentTurn);
+        for (final message in event.draftMessages) {
+          _mergeDraftMessage(message);
+        }
+        return;
+      case DebateChatRealtimeEventType.messageAcknowledged:
+        if (event.commandId != null) {
+          _messageCommandIds.remove(event.commandId);
+        }
+        if (event.message != null) {
+          _mergeDraftMessage(event.message!);
+        }
+        return;
+      case DebateChatRealtimeEventType.messageCreated:
+        if (event.message != null) {
+          _mergeDraftMessage(event.message!);
+        }
+        return;
+      case DebateChatRealtimeEventType.turnFinalized:
+        unawaited(_refreshTurnAfterFinalized());
+        return;
+      case DebateChatRealtimeEventType.debateEnded:
+        _handleDebateEnded(event.endReason);
+        return;
+      case DebateChatRealtimeEventType.error:
+        _handleRealtimeError(event);
+        return;
+    }
+  }
+
+  void _mergeDraftMessage(DebateChatDraftMessage draft) {
+    _currentDraftCharacterCounts[draft.clientMessageId ?? draft.id] =
+        draft.content.characters.length;
+    final isMine = draft.speakerSide == _localWireSide;
+    _timeline.upsert(
+      CommunityChatMessage(
+        id: draft.id,
+        communityId: widget.debateId,
+        clientMessageId: draft.clientMessageId,
+        authorId: isMine ? 'me' : draft.speakerId,
+        authorName: isMine ? '나' : _opponentDebater.name,
+        text: draft.content,
+        createdAt: draft.createdAt,
+      ),
+    );
+    _scrollToLatestMessage();
+  }
+
+  Future<void> _loadDebateDetail() async {
+    try {
+      final detail = await ref
+          .read(debateChatRepositoryProvider)
+          .getDebateDetail(widget.debateId);
+      if (!mounted) return;
+      setState(() {
+        _debateDetail = detail;
+        _isExpired = detail.status == 'FAILED';
+      });
+      _totalClockTimer?.cancel();
+      _totalClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        final expiresAt = _debateDetail?.expiresAt;
+        if (expiresAt != null && !DateTime.now().isBefore(expiresAt)) {
+          if (!_isExpired) {
+            setState(() => _isExpired = true);
+            unawaited(_confirmServerExpiration());
+          }
+          return;
+        }
+        setState(() {});
+      });
+      if (detail.status == 'FAILED') {
+        _handleDebateEnded(null);
+      } else if (detail.status == 'COMPLETED') {
+        _openResult();
+      }
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('토론 정보를 불러오지 못했습니다.')));
+    }
+  }
+
+  String get _totalRemainingLabel {
+    final expiresAt = _debateDetail?.expiresAt;
+    if (expiresAt == null) return '27:00';
+    final seconds = expiresAt
+        .difference(DateTime.now())
+        .inSeconds
+        .clamp(0, 1620);
+    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _confirmServerExpiration() async {
+    for (var attempt = 0; attempt < 4 && mounted; attempt++) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      final detail = await ref
+          .read(debateChatRepositoryProvider)
+          .getDebateDetail(widget.debateId);
+      if (!mounted) return;
+      _debateDetail = detail;
+      if (detail.status == 'FAILED') {
+        _handleDebateEnded('TOTAL_TIME_EXPIRED');
+        return;
+      }
+    }
+  }
+
+  void _handleDebateEnded(String? reason) {
+    if (!mounted || _endDialogShown) return;
+    _endDialogShown = true;
+    setState(() {
+      _isExpired = true;
+      _isDebateFinalized = true;
+    });
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('토론 종료', style: TextStyle(color: Colors.white)),
+        content: Text(
+          reason == 'TOTAL_TIME_EXPIRED'
+              ? '전체 토론 시간 27분이 지나 토론이 종료되었습니다.'
+              : '토론이 종료되었습니다.',
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.maybePop(context);
+            },
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleRealtimeError(DebateChatRealtimeEvent event) {
+    final commandId = event.commandId;
+    final clientMessageId = commandId == null
+        ? null
+        : _messageCommandIds.remove(commandId);
+    if (clientMessageId != null) {
+      _timeline.markFailed(clientMessageId);
+    }
+    if (commandId != null && commandId == _pendingFinalizeCommandId) {
+      _clearFinalizePending();
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(event.errorMessage ?? '토론 요청을 처리하지 못했습니다.')),
+    );
+  }
+
+  Future<void> _refreshTurnAfterFinalized() async {
+    final wasMyFinalize = _pendingFinalizeCommandId != null;
+    try {
+      final currentTurn = await ref
+          .read(debateChatRepositoryProvider)
+          .getCurrentTurn(widget.debateId);
+      if (!mounted) {
+        return;
+      }
+      _clearFinalizePending();
+      _applyCurrentTurn(currentTurn);
+      if (wasMyFinalize) {
+        _showTurnPassedToast();
+      }
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _clearFinalizePending();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_finalizeErrorMessage(error))));
+    }
+  }
+
+  void _applyCurrentTurn(DebateChatCurrentTurn? turn) {
+    _turnClockTimer?.cancel();
+    final previousTurn = _serverCurrentTurn;
+    final isNewTurn =
+        previousTurn == null ||
+        turn == null ||
+        previousTurn.phase != turn.phase ||
+        previousTurn.round != turn.round ||
+        previousTurn.turnSide != turn.turnSide ||
+        previousTurn.startedAt != turn.startedAt;
+    if (isNewTurn) {
+      _currentDraftCharacterCounts.clear();
+      _messageController.clear();
+    }
+    if (mounted) {
+      setState(() {
+        _hasReceivedSnapshot = true;
+        _serverCurrentTurn = turn;
+        _isDebateFinalized = turn == null;
+      });
+    }
+    if (turn != null) {
+      _turnClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    } else {
+      _startResultPolling();
+    }
+  }
+
+  void _startResultPolling() {
+    if (_resultPollTimer != null || _isExpired) return;
+    _resultPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      try {
+        final detail = await ref
+            .read(debateChatRepositoryProvider)
+            .getDebateDetail(widget.debateId);
+        if (!mounted) return;
+        _debateDetail = detail;
+        if (detail.status == 'COMPLETED') {
+          _resultPollTimer?.cancel();
+          _resultPollTimer = null;
+          _openResult();
+        } else if (detail.status == 'FAILED') {
+          _resultPollTimer?.cancel();
+          _resultPollTimer = null;
+          _handleDebateEnded(null);
+        }
+      } on Object {
+        // 일시적인 네트워크 오류는 다음 poll에서 복구한다.
+      }
+    });
+  }
+
+  void _openResult() {
+    if (!mounted) return;
+    context.go(
+      '/communities/${widget.community.id}/debate/result?debateId=${widget.debateId}',
+    );
+  }
+
+  void _startFinalizeTimeout(String commandId) {
+    _finalizeTimeoutTimer?.cancel();
+    _finalizeTimeoutTimer = Timer(const Duration(seconds: 10), () {
+      if (!mounted || _pendingFinalizeCommandId != commandId) {
+        return;
+      }
+      _clearFinalizePending();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('턴 확정 응답이 없습니다. 다시 시도해 주세요.')),
       );
     });
-    _messageController.clear();
+  }
+
+  void _clearFinalizePending() {
+    _finalizeTimeoutTimer?.cancel();
+    _finalizeTimeoutTimer = null;
+    if (mounted) {
+      setState(() {
+        _isFinalizingTurn = false;
+        _pendingFinalizeCommandId = null;
+      });
+    }
+  }
+
+  String _finalizeErrorMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message'];
+        if (message is String && message.isNotEmpty) {
+          return message;
+        }
+      }
+    }
+    return '턴을 확정하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+  }
+
+  void _scrollToLatestMessage() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) {
+      if (!mounted || !_scrollController.hasClients) {
         return;
       }
       _scrollController.animateTo(
@@ -206,8 +754,10 @@ class _DebateRoomState extends State<DebateRoom> {
 
   void _showMessageLimitNotice() {
     _limitNoticeTimer?.cancel();
+    _turnPassedNoticeTimer?.cancel();
     setState(() {
       _showLimitNotice = true;
+      _showTurnPassedNotice = false;
     });
     _limitNoticeTimer = Timer(const Duration(seconds: 3), () {
       if (!mounted) {
@@ -216,6 +766,19 @@ class _DebateRoomState extends State<DebateRoom> {
       setState(() {
         _showLimitNotice = false;
       });
+    });
+  }
+
+  void _showTurnPassedToast() {
+    _turnPassedNoticeTimer?.cancel();
+    _limitNoticeTimer?.cancel();
+    setState(() {
+      _showLimitNotice = false;
+      _showTurnPassedNotice = true;
+    });
+    _turnPassedNoticeTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() => _showTurnPassedNotice = false);
     });
   }
 
@@ -248,11 +811,11 @@ class _DebateRoomState extends State<DebateRoom> {
             ),
             DebateProgressStep(
               label: '${opponent.name} 최종 발언',
-              durationLabel: '3분',
+              durationLabel: '1분 30초',
             ),
             DebateProgressStep(
               label: '${host.name} 최종 발언',
-              durationLabel: '3분',
+              durationLabel: '1분 30초',
             ),
             const DebateProgressStep(label: '채팅 메시지 프로세싱', durationLabel: '1분'),
             const DebateProgressStep(label: '발언 내용 분석', durationLabel: '1분'),
@@ -477,75 +1040,6 @@ class _TotalTimer extends StatelessWidget {
   }
 }
 
-class _DebateRoomMessage {
-  const _DebateRoomMessage({
-    required this.authorName,
-    required this.text,
-    this.isMine = false,
-  });
-
-  final String authorName;
-  final String text;
-  final bool isMine;
-}
-
-class _DebateRoomMessageRow extends StatelessWidget {
-  const _DebateRoomMessageRow({required this.message});
-
-  final _DebateRoomMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxWidth = MediaQuery.sizeOf(context).width - 76;
-
-    if (message.isMine) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: _MessageBubble(text: message.text, isMine: true),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _DebateAvatar(),
-          const SizedBox(width: 8),
-          Flexible(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.authorName,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _MessageBubble(text: message.text),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DebateAvatar extends StatelessWidget {
   const _DebateAvatar();
 
@@ -562,39 +1056,11 @@ class _DebateAvatar extends StatelessWidget {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.text, this.isMine = false});
-
-  final String text;
-  final bool isMine;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: isMine ? AppColors.primary : AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 16,
-            height: 1.5,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _DebateTurnControl extends StatelessWidget {
   const _DebateTurnControl({
     required this.turn,
     required this.enabled,
+    required this.isSubmitting,
     required this.characterCount,
     required this.maxCharacterCount,
     required this.onInfoTap,
@@ -603,6 +1069,7 @@ class _DebateTurnControl extends StatelessWidget {
 
   final DebateTurn turn;
   final bool enabled;
+  final bool isSubmitting;
   final int characterCount;
   final int maxCharacterCount;
   final VoidCallback onInfoTap;
@@ -610,10 +1077,7 @@ class _DebateTurnControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stageLimit = turn.remainingSeconds > turn.stage.limitSeconds
-        ? 180
-        : turn.stage.limitSeconds;
-    final progress = turn.remainingSeconds / stageLimit;
+    final progress = turn.remainingSeconds / turn.stage.limitSeconds;
     final minutes = (turn.remainingSeconds ~/ 60).toString();
     final seconds = (turn.remainingSeconds % 60).toString().padLeft(2, '0');
     final foreground = enabled ? AppColors.accent : AppColors.textMuted;
@@ -714,19 +1178,28 @@ class _DebateTurnControl extends StatelessWidget {
             color: AppColors.border,
           ),
           InkWell(
-            onTap: enabled ? onSkip : null,
+            onTap: enabled && !isSubmitting ? onSkip : null,
             borderRadius: BorderRadius.circular(6),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-              child: Text(
-                '턴 넘기기',
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: 14,
-                  height: 1.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.accent,
+                      ),
+                    )
+                  : Text(
+                      '턴 넘기기',
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: 14,
+                        height: 1.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -735,109 +1208,33 @@ class _DebateTurnControl extends StatelessWidget {
   }
 }
 
-class _DebateRoomInput extends StatelessWidget {
-  const _DebateRoomInput({
-    required this.controller,
-    required this.enabled,
-    required this.hintText,
-    required this.maxLength,
-    required this.onLimitReached,
-    required this.onSend,
-  });
-
-  final TextEditingController controller;
-  final bool enabled;
-  final String hintText;
-  final int maxLength;
-  final VoidCallback onLimitReached;
-  final VoidCallback onSend;
+class _TurnFinalizeDialog extends StatelessWidget {
+  const _TurnFinalizeDialog();
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.paddingOf(context).bottom;
-
-    return Container(
-      color: AppColors.background,
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomPadding),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              _InputIconButton(
-                icon: Icons.image_outlined,
-                onTap: enabled ? () {} : null,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          enabled: enabled,
-                          maxLines: 1,
-                          maxLength: maxLength,
-                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                          inputFormatters: [
-                            LengthLimitingTextInputFormatter(maxLength),
-                          ],
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 16,
-                            height: 1.5,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            counterText: '',
-                            isCollapsed: true,
-                            hintText: hintText,
-                            hintStyle: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 16,
-                              height: 1.5,
-                            ),
-                          ),
-                          onChanged: (value) {
-                            if (value.characters.length >= maxLength) {
-                              onLimitReached();
-                            }
-                          },
-                          onSubmitted: (_) => onSend(),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: enabled ? onSend : null,
-                        borderRadius: BorderRadius.circular(12),
-                        child: const Icon(
-                          Icons.mic_rounded,
-                          color: AppColors.textMuted,
-                          size: 24,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return DebateConfirmationDialog(
+      icon: Icons.redo_rounded,
+      title: '턴을 넘기시겠습니까?',
+      description: '현재 발화가 종료되고 상대방에게 턴이 넘어갑니다.',
+      cancelLabel: '아니오',
+      confirmLabel: '턴 넘기기',
+      onCancel: () => Navigator.pop(context, false),
+      onConfirm: () => Navigator.pop(context, true),
     );
   }
 }
 
-class _DebateLimitToast extends StatelessWidget {
-  const _DebateLimitToast({required this.visible});
+class _DebateToast extends StatelessWidget {
+  const _DebateToast({
+    required this.visible,
+    required this.icon,
+    required this.message,
+  });
 
   final bool visible;
+  final IconData icon;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -871,18 +1268,14 @@ class _DebateLimitToast extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.error_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                    SizedBox(width: 8),
+                    Icon(icon, size: 18, color: AppColors.primary),
+                    const SizedBox(width: 8),
                     Text(
-                      '이번 턴에서는 더이상 메시지를 보낼 수 없습니다.',
-                      style: TextStyle(
+                      message,
+                      style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 12,
                         height: 1.45,

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/network/dio_provider.dart';
 import '../../data/mock_community_repository.dart';
 import '../../domain/entities/community.dart';
 
@@ -21,7 +22,7 @@ class CommunityFilter {
 }
 
 final communityRepositoryProvider = Provider<MockCommunityRepository>((ref) {
-  return MockCommunityRepository();
+  return MockCommunityRepository(dioProvider: () => ref.read(dioProvider));
 });
 
 class CommunityFilterNotifier extends Notifier<CommunityFilter> {
@@ -48,14 +49,21 @@ final communityFilterProvider =
       CommunityFilterNotifier.new,
     );
 
-final communitiesProvider = Provider<List<Community>>((ref) {
+final communitiesProvider = FutureProvider<List<Community>>((ref) {
   final repository = ref.watch(communityRepositoryProvider);
   final filter = ref.watch(communityFilterProvider);
-  return repository.getCommunities(
+  return repository.fetchCommunities(
     category: filter.category,
     query: filter.query,
   );
 });
+
+final communityMembersProvider =
+    FutureProvider.family<List<CommunityMemberSummary>, String>(
+      (ref, communityId) => ref
+          .watch(communityRepositoryProvider)
+          .fetchCommunityMembers(communityId),
+    );
 
 class EnteredCommunityNotifier extends Notifier<Set<String>> {
   @override

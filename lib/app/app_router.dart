@@ -12,12 +12,44 @@ import '../features/debate/presentation/screens/community_list_screen.dart';
 import '../features/debate/presentation/screens/debate_session_screen.dart';
 import '../features/debate/presentation/screens/debate_result_screen.dart';
 import '../features/debate/presentation/screens/community_chat_screen.dart';
+import '../features/auth/presentation/providers/auth_providers.dart';
+import '../features/auth/presentation/screens/auth_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final repository = ref.watch(communityRepositoryProvider);
+  final auth = ref.watch(authControllerProvider);
 
   return GoRouter(
+    initialLocation: '/splash',
+    redirect: (context, state) {
+      final isAuthRoute =
+          state.matchedLocation == '/login' ||
+          state.matchedLocation == '/signup';
+      if (auth.isLoading) {
+        if (isAuthRoute) return null;
+        return state.matchedLocation == '/splash' ? null : '/splash';
+      }
+      final isAuthenticated = auth.value != null;
+
+      if (!isAuthenticated && !isAuthRoute) return '/login';
+      if (isAuthenticated && isAuthRoute) return '/';
+      if (isAuthenticated && state.matchedLocation == '/splash') return '/';
+      return null;
+    },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const AuthScreen.login(),
+      ),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const AuthScreen.signUp(),
+      ),
       GoRoute(
         path: '/',
         builder: (context, state) => const CommunityListScreen(),
@@ -59,7 +91,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return community == null
               ? const _RouteNotFoundScreen()
-              : DebateSessionScreen(community: community);
+              : DebateSessionScreen(
+                  community: community,
+                  debateId:
+                      state.uri.queryParameters['debateId'] ?? community.id,
+                );
         },
       ),
       GoRoute(
@@ -70,9 +106,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
           return community == null
               ? const _RouteNotFoundScreen()
-              : DebateResultScreen(
+              : DebateResultApiScreen(
                   community: community,
-                  result: repository.getResult(community),
+                  debateId:
+                      state.uri.queryParameters['debateId'] ?? community.id,
                 );
         },
       ),

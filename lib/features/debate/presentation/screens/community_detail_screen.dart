@@ -64,16 +64,32 @@ class CommunityDetailScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: HeimdallBottomActionBar(
         label: '커뮤니티 입장',
-        onPressed: () {
-          ref.read(enteredCommunityProvider.notifier).markEntered(community.id);
-          final location = community.isOwnedByCurrentUser
-              ? '/communities/${community.id}/chat?role=host'
-              : '/communities/${community.id}/chat';
-          context.pushReplacement(location);
-        },
+        onPressed: () => _enterCommunity(context, ref),
         includeSafeArea: false,
       ),
     );
+  }
+
+  Future<void> _enterCommunity(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(communityRepositoryProvider).joinCommunity(community.id);
+      ref.read(enteredCommunityProvider.notifier).markEntered(community.id);
+      ref.invalidate(communitiesProvider);
+      if (!context.mounted) {
+        return;
+      }
+      final location = community.isOwnedByCurrentUser
+          ? '/communities/${community.id}/chat?role=host'
+          : '/communities/${community.id}/chat';
+      context.pushReplacement(location);
+    } on Object {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('커뮤니티에 입장하지 못했습니다.')));
+    }
   }
 }
 

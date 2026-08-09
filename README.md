@@ -1,17 +1,18 @@
-# heimdall
+# Heimdall Frontend
 
-A new Flutter project.
+## Local environment
 
-## Getting Started
+Create the local environment file and set the backend host reachable from the
+target device.
 
-This project is a starting point for a Flutter application.
+```bash
+cp .env.example .env
+```
 
-A few resources to get you started if this is your first Flutter project:
+Run Flutter with the build-time environment file.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter run --dart-define-from-file=.env
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+VS Code's `Heimdall (local env)` launch configuration applies the same file.

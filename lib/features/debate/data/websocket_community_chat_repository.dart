@@ -20,4 +20,18 @@ class WebSocketCommunityChatRepository implements CommunityChatRepository {
       ),
     );
   }
+
+  @override
+  Future<void> saveOpinion(SaveCommunityOpinionRequest request) {
+    final commandId = 'opinion-${DateTime.now().microsecondsSinceEpoch}';
+    return client.send(
+      CommunityChatCommand(
+        id: commandId,
+        communityId: request.communityId,
+        type: CommunityChatCommandType.opinionSubmit,
+        sentAt: DateTime.now(),
+        payload: {'claim': request.claim, 'reasons': request.reasons},
+      ),
+    );
+  }
 }

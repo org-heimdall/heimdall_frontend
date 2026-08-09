@@ -39,51 +39,61 @@ class DebatePopupSheet extends StatelessWidget {
           color: AppColors.surface,
           child: Stack(
             children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
-                        onPressed: onClose,
-                        icon: const Icon(Icons.close_rounded),
-                        color: AppColors.textMuted,
-                        tooltip: '닫기',
+              Padding(
+                padding: EdgeInsets.only(bottom: _isHost ? 0 : 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Semantics(
+                          button: true,
+                          label: '닫기',
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: onClose,
+                            child: SvgPicture.asset(
+                              AppAssets.profilePopupClose,
+                              width: 24,
+                              height: 24,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _PopupUserSummary(userName: userName, score: score),
-                          const SizedBox(height: 24),
-                          _ReadonlyField(label: '주장', text: claim),
-                          const SizedBox(height: 24),
-                          _ReasonList(reasons: reasons),
-                        ],
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _PopupUserSummary(userName: userName, score: score),
+                            const SizedBox(height: 12),
+                            _ReadonlyField(label: '주장', text: claim),
+                            const SizedBox(height: 24),
+                            _ReasonList(reasons: reasons),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  if (_isHost)
-                    Container(
-                      color: AppColors.surface,
-                      padding: const EdgeInsets.all(16),
-                      child: HeimdallPrimaryButton(
-                        label: '토론하기',
-                        onPressed: onDebate,
+                    if (_isHost)
+                      Container(
+                        color: AppColors.surface,
+                        padding: const EdgeInsets.all(16),
+                        child: HeimdallPrimaryButton(
+                          label: '토론하기',
+                          onPressed: onDebate,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: _isHost ? 89 : 0,
+                bottom: _isHost ? 89 : 16,
                 child: IgnorePointer(
                   child: Container(
                     height: 40,
@@ -120,7 +130,7 @@ class _PopupUserSummary extends StatelessWidget {
         children: [
           ClipOval(
             child: Image.asset(
-              AppAssets.avatarBlue,
+              AppAssets.profilePopupAvatar,
               width: 80,
               height: 80,
               fit: BoxFit.cover,
@@ -166,13 +176,9 @@ class _ProfileScoreBadge extends StatelessWidget {
             height: 20,
             child: Center(
               child: SvgPicture.asset(
-                AppAssets.trophyIcon,
-                width: 16,
-                height: 16,
-                colorFilter: const ColorFilter.mode(
-                  AppColors.primary,
-                  BlendMode.srcIn,
-                ),
+                AppAssets.profilePopupTrophy,
+                width: 20,
+                height: 20,
               ),
             ),
           ),
@@ -277,10 +283,11 @@ class _ReasonList extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Text(
                     '${i + 1}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      height: 1,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

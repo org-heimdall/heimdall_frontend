@@ -3,25 +3,38 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/community.dart';
 
 class CommunityMember extends StatefulWidget {
   const CommunityMember({
-    required this.hostName,
-    required this.memberNames,
+    required this.userName,
+    required this.currentMemberId,
+    required this.members,
     required this.onClose,
-    this.hostScore = 32,
+    this.onProfileTap,
+    this.profileImageUrl,
+    this.userScore,
+    this.initialWantsToDebate = true,
+    this.onDebateIntentChanged,
     this.showHostActions = false,
     this.onDeleteCommunity,
+    this.onLeaveCommunity,
     this.onReport,
     super.key,
   });
 
-  final String hostName;
-  final int hostScore;
-  final List<String> memberNames;
+  final String userName;
+  final String currentMemberId;
+  final String? profileImageUrl;
+  final int? userScore;
+  final bool initialWantsToDebate;
+  final Future<void> Function(bool wantsToDebate)? onDebateIntentChanged;
+  final List<CommunityMemberSummary> members;
   final VoidCallback onClose;
+  final VoidCallback? onProfileTap;
   final bool showHostActions;
   final VoidCallback? onDeleteCommunity;
+  final VoidCallback? onLeaveCommunity;
   final VoidCallback? onReport;
 
   @override
@@ -30,14 +43,65 @@ class CommunityMember extends StatefulWidget {
 
 class _CommunityMemberState extends State<CommunityMember> {
   bool _isFavorite = true;
-  bool _wantsToDebate = true;
+  late bool _wantsToDebate;
+
+  @override
+  void initState() {
+    super.initState();
+    _wantsToDebate = widget.initialWantsToDebate;
+  }
+
+  Future<void> _setDebateIntent(bool wantsToDebate) async {
+    if (_wantsToDebate == wantsToDebate) {
+      return;
+    }
+    final previous = _wantsToDebate;
+    setState(() => _wantsToDebate = wantsToDebate);
+    try {
+      await widget.onDebateIntentChanged?.call(wantsToDebate);
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _wantsToDebate = previous);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('토론 의사 상태를 저장하지 못했습니다.')));
+    }
+  }
+
+  List<CommunityMemberSummary> get _sortedMembers {
+    final members = [...widget.members];
+    members.sort((left, right) {
+      final leftWantsToDebate = left.id == widget.currentMemberId
+          ? _wantsToDebate
+          : left.wantsToDebate;
+      final rightWantsToDebate = right.id == widget.currentMemberId
+          ? _wantsToDebate
+          : right.wantsToDebate;
+      final intentOrder = (rightWantsToDebate ? 1 : 0).compareTo(
+        leftWantsToDebate ? 1 : 0,
+      );
+      if (intentOrder != 0) {
+        return intentOrder;
+      }
+      final roleOrder = (left.isHost ? 0 : 1).compareTo(right.isHost ? 0 : 1);
+      if (roleOrder != 0) {
+        return roleOrder;
+      }
+      return left.joinedAt.compareTo(right.joinedAt);
+    });
+    return members;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final members = _sortedMembers;
     return Material(
       color: AppColors.surface,
       child: SafeArea(
         left: false,
+        bottom: false,
         child: Column(
           children: [
             _MemberPanelActions(
@@ -46,32 +110,41 @@ class _CommunityMemberState extends State<CommunityMember> {
               onFavorite: () => setState(() => _isFavorite = !_isFavorite),
             ),
             const SizedBox(height: 4),
-            const CircleAvatar(
-              radius: 40,
-              backgroundImage: AssetImage(AppAssets.communityHostAvatar),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              widget.hostName,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 20,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.5,
+            InkWell(
+              onTap: widget.onProfileTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  children: [
+                    _CurrentMemberAvatar(
+                      userName: widget.userName,
+                      profileImageUrl: widget.profileImageUrl,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.userName,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 20,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    if (widget.userScore case final score?) ...[
+                      const SizedBox(height: 8),
+                      _HostScore(score: score),
+                    ],
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            _HostScore(score: widget.hostScore),
             const SizedBox(height: 16),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  0,
-                  16,
-                  widget.showHostActions ? 24 : 30,
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     '토론 의사',
@@ -88,9 +161,9 @@ class _CommunityMemberState extends State<CommunityMember> {
                       Expanded(
                         child: _DebateIntentButton(
                           label: '준비할래요',
-                          icon: Icons.person_search_outlined,
+                          iconAsset: AppAssets.debatePreparingIcon,
                           selected: !_wantsToDebate,
-                          onTap: () => setState(() => _wantsToDebate = false),
+                          onTap: () => _setDebateIntent(false),
                         ),
                       ),
                       const SizedBox(width: 28),
@@ -99,60 +172,100 @@ class _CommunityMemberState extends State<CommunityMember> {
                           label: '토론할래요',
                           icon: Icons.search_rounded,
                           selected: _wantsToDebate,
-                          onTap: () => setState(() => _wantsToDebate = true),
+                          onTap: () => _setDebateIntent(true),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Text.rich(
-                    TextSpan(
-                      text: '현재 참여 중  ',
-                      children: [
-                        TextSpan(
-                          text: '${widget.memberNames.length}',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ),
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
-                      height: 1.35,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  DecoratedBox(
-                    decoration: const BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(10),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < widget.memberNames.length;
-                          index++
-                        )
-                          _MemberTile(
-                            name: widget.memberNames[index],
-                            isHost: index == 0,
-                            showDivider: index < widget.memberNames.length - 1,
-                          ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
-            if (widget.showHostActions)
-              _HostCommunityActions(
-                onDeleteCommunity: widget.onDeleteCommunity,
-                onReport: widget.onReport,
+            const SizedBox(height: 24),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => CustomScrollView(
+                  clipBehavior: Clip.hardEdge,
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text.rich(
+                                      TextSpan(
+                                        text: '현재 참여 중  ',
+                                        children: [
+                                          TextSpan(
+                                            text: '${members.length}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 13,
+                                        height: 1.35,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    DecoratedBox(
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.background,
+                                        borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(10),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          for (
+                                            var index = 0;
+                                            index < members.length;
+                                            index++
+                                          )
+                                            _MemberTile(
+                                              name: members[index].displayName,
+                                              isHost: members[index].isHost,
+                                              showDivider:
+                                                  index < members.length - 1,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Spacer(),
+                              widget.showHostActions
+                                  ? _HostCommunityActions(
+                                      onDeleteCommunity:
+                                          widget.onDeleteCommunity,
+                                    )
+                                  : _MemberCommunityActions(
+                                      onLeaveCommunity: widget.onLeaveCommunity,
+                                      onReport: widget.onReport,
+                                    ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            ),
           ],
         ),
       ),
@@ -160,13 +273,71 @@ class _CommunityMemberState extends State<CommunityMember> {
   }
 }
 
-class _HostCommunityActions extends StatelessWidget {
-  const _HostCommunityActions({
-    required this.onDeleteCommunity,
+class _CurrentMemberAvatar extends StatelessWidget {
+  const _CurrentMemberAvatar({
+    required this.userName,
+    required this.profileImageUrl,
+  });
+
+  final String userName;
+  final String? profileImageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = profileImageUrl?.trim();
+
+    return ClipOval(
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: imageUrl == null || imageUrl.isEmpty
+            ? _AvatarFallback(userName: userName)
+            : Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _AvatarFallback(userName: userName),
+              ),
+      ),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.userName});
+
+  final String userName;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = userName.trim();
+    final initial = normalizedName.isEmpty
+        ? '?'
+        : normalizedName.characters.first;
+
+    return ColoredBox(
+      color: AppColors.primarySoft,
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 30,
+            height: 1.2,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MemberCommunityActions extends StatelessWidget {
+  const _MemberCommunityActions({
+    required this.onLeaveCommunity,
     required this.onReport,
   });
 
-  final VoidCallback? onDeleteCommunity;
+  final VoidCallback? onLeaveCommunity;
   final VoidCallback? onReport;
 
   @override
@@ -175,27 +346,77 @@ class _HostCommunityActions extends StatelessWidget {
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.surfaceElevated)),
       ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _HostCommunityActionButton(
-              label: '커뮤니티 삭제하기',
-              icon: Icons.delete_rounded,
+      child: Row(
+        children: [
+          Expanded(
+            child: _MemberCommunityActionButton(
+              label: '채팅방 나가기',
+              icon: Icons.logout_rounded,
               color: const Color(0xFFFF5410),
-              onTap: onDeleteCommunity,
+              onTap: onLeaveCommunity,
             ),
-            const Divider(
-              height: 1,
+          ),
+          const SizedBox(
+            height: 28,
+            child: VerticalDivider(
+              width: 1,
               thickness: 1,
               color: AppColors.surfaceElevated,
             ),
-            _HostCommunityActionButton(
+          ),
+          Expanded(
+            child: _MemberCommunityActionButton(
               label: '신고하기',
               icon: Icons.report_rounded,
-              color: Color(0xFFA7B4BF),
+              color: const Color(0xFFA7B4BF),
               onTap: onReport,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberCommunityActionButton extends StatelessWidget {
+  const _MemberCommunityActionButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.iconSize = 20,
+    this.fontSize = 14,
+    this.contentSpacing = 8,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+  final double iconSize;
+  final double fontSize;
+  final double contentSpacing;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: iconSize, color: color),
+            SizedBox(width: contentSpacing),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: fontSize,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.3,
+              ),
             ),
           ],
         ),
@@ -204,41 +425,25 @@ class _HostCommunityActions extends StatelessWidget {
   }
 }
 
-class _HostCommunityActionButton extends StatelessWidget {
-  const _HostCommunityActionButton({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
+class _HostCommunityActions extends StatelessWidget {
+  const _HostCommunityActions({required this.onDeleteCommunity});
 
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
+  final VoidCallback? onDeleteCommunity;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 60,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 30, color: color),
-            const SizedBox(width: 28),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 18,
-                height: 1.4,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ],
-        ),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.surfaceElevated)),
+      ),
+      child: _MemberCommunityActionButton(
+        label: '커뮤니티 삭제하기',
+        icon: Icons.delete_rounded,
+        color: const Color(0xFFFF5410),
+        onTap: onDeleteCommunity,
+        iconSize: 30,
+        fontSize: 18,
+        contentSpacing: 20,
       ),
     );
   }
@@ -332,13 +537,15 @@ class _HostScore extends StatelessWidget {
 class _DebateIntentButton extends StatelessWidget {
   const _DebateIntentButton({
     required this.label,
-    required this.icon,
     required this.selected,
     required this.onTap,
-  });
+    this.icon,
+    this.iconAsset,
+  }) : assert(icon != null || iconAsset != null);
 
   final String label;
-  final IconData icon;
+  final IconData? icon;
+  final String? iconAsset;
   final bool selected;
   final VoidCallback onTap;
 
@@ -363,7 +570,16 @@ class _DebateIntentButton extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 36, color: AppColors.primary),
+            if (iconAsset case final asset?)
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: Center(
+                  child: SvgPicture.asset(asset, width: 30, height: 27),
+                ),
+              )
+            else
+              Icon(icon, size: 36, color: AppColors.primary),
             const SizedBox(height: 3),
             Text(
               label,

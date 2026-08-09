@@ -1,9 +1,9 @@
 import 'community.dart';
 
 enum DebateStage {
-  opening('입론', 60),
+  opening('입론', 90),
   rebuttalQuestion('반론 및 질문', 180),
-  closing('최종 발언', 60);
+  closing('최종 발언', 90);
 
   const DebateStage(this.label, this.limitSeconds);
 

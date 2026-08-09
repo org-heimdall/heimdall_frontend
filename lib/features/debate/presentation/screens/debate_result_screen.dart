@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/debate_result.dart';
@@ -6,6 +7,42 @@ import '../../domain/entities/community.dart';
 import '../widgets/debate_result_section.dart';
 import '../widgets/heimdall_card.dart';
 import '../widgets/heimdall_logo.dart';
+import '../providers/debate_chat_providers.dart';
+
+class DebateResultApiScreen extends ConsumerWidget {
+  const DebateResultApiScreen({
+    required this.community,
+    required this.debateId,
+    super.key,
+  });
+
+  final Community community;
+  final String debateId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref
+        .watch(debateResultProvider(debateId))
+        .when(
+          data: (result) =>
+              DebateResultScreen(community: community, result: result),
+          loading: () => const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          ),
+          error: (error, stackTrace) => Scaffold(
+            appBar: AppBar(leading: const HeimdallBackButton()),
+            body: Center(
+              child: TextButton(
+                onPressed: () => ref.invalidate(debateResultProvider(debateId)),
+                child: const Text('판정 결과를 불러오지 못했습니다. 다시 시도'),
+              ),
+            ),
+          ),
+        );
+  }
+}
 
 class DebateResultScreen extends StatelessWidget {
   const DebateResultScreen({
@@ -49,7 +86,9 @@ class DebateResultScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${result.winner.label} 측',
+                    result.winner == DebateWinner.draw
+                        ? result.winner.label
+                        : '${result.winner.label} 측',
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 34,

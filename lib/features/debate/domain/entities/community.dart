@@ -48,10 +48,32 @@ class Debater {
 }
 
 class CommunityHost {
-  const CommunityHost({required this.name, required this.avatarColor});
+  const CommunityHost({required this.name, required this.avatarColor, this.id});
 
+  final String? id;
   final String name;
   final int avatarColor;
+}
+
+class CommunityMemberSummary {
+  const CommunityMemberSummary({
+    required this.id,
+    required this.displayName,
+    required this.role,
+    required this.debateIntent,
+    required this.joinedAt,
+    this.profileImageUrl,
+  });
+
+  final String id;
+  final String displayName;
+  final String? profileImageUrl;
+  final String role;
+  final String debateIntent;
+  final DateTime joinedAt;
+
+  bool get isHost => role == 'HOST';
+  bool get wantsToDebate => debateIntent == 'OPEN_TO_DEBATE';
 }
 
 class Community {
@@ -71,6 +93,7 @@ class Community {
     this.hostClaim = '',
     this.hostReasons = const [],
     this.isOwnedByCurrentUser = false,
+    this.isJoined = false,
   });
 
   final String id;
@@ -88,6 +111,7 @@ class Community {
   final String hostClaim;
   final List<String> hostReasons;
   final bool isOwnedByCurrentUser;
+  final bool isJoined;
 
   bool get isJoinable =>
       status == CommunityStatus.waiting && activeDebaters.length < 2;
