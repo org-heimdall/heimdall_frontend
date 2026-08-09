@@ -43,6 +43,9 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 65,
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
@@ -174,29 +177,37 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
     return (value) => value == null || value.trim().isEmpty ? message : null;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final room = ref
-        .read(communityRepositoryProvider)
-        .createCommunity(
-          title: _topicController.text.trim(),
-          topic: _descriptionController.text.trim(),
-          category: _category,
-          side: DebateSide.pro,
-          rounds: _rounds,
-          isPublic: true,
-          hostClaim: _claimController.text.trim(),
-          hostReasons: _reasonControllers
-              .map((controller) => controller.text.trim())
-              .where((reason) => reason.isNotEmpty)
-              .toList(),
-        );
-    ref.invalidate(communitiesProvider);
-    ref.read(enteredCommunityProvider.notifier).markEntered(room.id);
-    context.pushReplacement('/communities/${room.id}/chat?role=host');
+    try {
+      final room = await ref
+          .read(communityRepositoryProvider)
+          .createCommunity(
+            title: _topicController.text.trim(),
+            topic: _descriptionController.text.trim(),
+            category: _category,
+            side: DebateSide.pro,
+            rounds: _rounds,
+            isPublic: true,
+            hostClaim: _claimController.text.trim(),
+            hostReasons: _reasonControllers
+                .map((controller) => controller.text.trim())
+                .where((reason) => reason.isNotEmpty)
+                .toList(),
+          );
+      if (!mounted) return;
+      ref.invalidate(communitiesProvider);
+      ref.read(enteredCommunityProvider.notifier).markEntered(room.id);
+      context.pushReplacement('/communities/${room.id}/chat?role=host');
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('커뮤니티를 생성하지 못했습니다.')));
+    }
   }
 }
 

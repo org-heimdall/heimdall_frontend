@@ -7,6 +7,8 @@ class CommunityChatMessage {
     required this.text,
     required this.createdAt,
     this.relatedUserId,
+    this.opinionClaim,
+    this.opinionReasons = const [],
     this.clientMessageId,
     this.type = CommunityChatMessageType.text,
     this.deliveryStatus = CommunityChatMessageDeliveryStatus.sent,
@@ -21,6 +23,8 @@ class CommunityChatMessage {
   final String text;
   final DateTime createdAt;
   final String? relatedUserId;
+  final String? opinionClaim;
+  final List<String> opinionReasons;
   final CommunityChatMessageType type;
   final CommunityChatMessageDeliveryStatus deliveryStatus;
   final bool accentAvatar;
@@ -34,6 +38,8 @@ class CommunityChatMessage {
     String? text,
     DateTime? createdAt,
     String? relatedUserId,
+    String? opinionClaim,
+    List<String>? opinionReasons,
     CommunityChatMessageType? type,
     CommunityChatMessageDeliveryStatus? deliveryStatus,
     bool? accentAvatar,
@@ -47,6 +53,8 @@ class CommunityChatMessage {
       text: text ?? this.text,
       createdAt: createdAt ?? this.createdAt,
       relatedUserId: relatedUserId ?? this.relatedUserId,
+      opinionClaim: opinionClaim ?? this.opinionClaim,
+      opinionReasons: opinionReasons ?? this.opinionReasons,
       type: type ?? this.type,
       deliveryStatus: deliveryStatus ?? this.deliveryStatus,
       accentAvatar: accentAvatar ?? this.accentAvatar,
@@ -54,13 +62,15 @@ class CommunityChatMessage {
   }
 }
 
-class CommunityOpeningStatementNotice {
-  const CommunityOpeningStatementNotice({
+class CommunityOpinionNotice {
+  const CommunityOpinionNotice({
     required this.id,
     required this.communityId,
     required this.authorId,
     required this.authorName,
     required this.createdAt,
+    required this.claim,
+    required this.reasons,
   });
 
   final String id;
@@ -68,6 +78,8 @@ class CommunityOpeningStatementNotice {
   final String authorId;
   final String authorName;
   final DateTime createdAt;
+  final String claim;
+  final List<String> reasons;
 }
 
 class CommunityChatEvent {
@@ -76,14 +88,20 @@ class CommunityChatEvent {
     required this.communityId,
     required this.type,
     this.message,
-    this.openingStatementNotice,
+    this.opinionNotice,
+    this.debateId,
+    this.sideASpeakerId,
+    this.sideBSpeakerId,
   });
 
   final String id;
   final String communityId;
   final CommunityChatEventType type;
   final CommunityChatMessage? message;
-  final CommunityOpeningStatementNotice? openingStatementNotice;
+  final CommunityOpinionNotice? opinionNotice;
+  final String? debateId;
+  final String? sideASpeakerId;
+  final String? sideBSpeakerId;
 }
 
 class CommunityChatCommand {
@@ -123,7 +141,7 @@ enum CommunityChatViewerRole {
   bool get canWatchDebate => this == CommunityChatViewerRole.member;
 }
 
-enum CommunityChatMessageType { text, system, openingStatementNotice }
+enum CommunityChatMessageType { text, system, opinionNotice }
 
 enum CommunityChatMessageDeliveryStatus { pending, sent, failed }
 
@@ -131,15 +149,17 @@ enum CommunityChatEventType {
   messageCreated,
   messageUpdated,
   messageDeleted,
-  openingStatementCreated,
+  opinionSubmitted,
   connectionRestored,
+  debateStarted,
+  debateEnded,
 }
 
 enum CommunityChatCommandType {
   messageSend('message.send'),
   typingStarted('typing.started'),
   typingStopped('typing.stopped'),
-  openingStatementSubmit('opening_statement.submit');
+  opinionSubmit('opinion.submit');
 
   const CommunityChatCommandType(this.wireName);
 
@@ -158,4 +178,16 @@ class SendCommunityChatMessageRequest {
   final String authorId;
   final String text;
   final String clientMessageId;
+}
+
+class SaveCommunityOpinionRequest {
+  const SaveCommunityOpinionRequest({
+    required this.communityId,
+    required this.claim,
+    required this.reasons,
+  });
+
+  final String communityId;
+  final String claim;
+  final List<String> reasons;
 }

@@ -8,12 +8,14 @@ class CommunityListHeader extends StatelessWidget {
     required this.isSearching,
     required this.onSearchTap,
     required this.onQueryChanged,
+    required this.onLogout,
     super.key,
   });
 
   final bool isSearching;
   final VoidCallback onSearchTap;
   final ValueChanged<String> onQueryChanged;
+  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,12 @@ class CommunityListHeader extends StatelessWidget {
                   ),
                   color: AppColors.textMuted,
                   tooltip: isSearching ? '검색 닫기' : '검색',
+                ),
+                IconButton(
+                  onPressed: onLogout,
+                  icon: const Icon(Icons.logout_rounded),
+                  color: AppColors.textMuted,
+                  tooltip: '로그아웃',
                 ),
               ],
             ),

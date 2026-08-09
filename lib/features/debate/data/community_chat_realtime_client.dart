@@ -19,13 +19,13 @@ class WebSocketCommunityChatRealtimeClient
     implements CommunityChatRealtimeClient {
   const WebSocketCommunityChatRealtimeClient({
     required this.uriBuilder,
-    this.headers,
+    this.headersProvider,
     this.reconnectDelay = const Duration(seconds: 2),
     this.maxReconnectAttempts = 5,
   });
 
   final CommunityChatRealtimeUriBuilder uriBuilder;
-  final Map<String, dynamic>? headers;
+  final Future<Map<String, dynamic>> Function()? headersProvider;
   final Duration reconnectDelay;
   final int maxReconnectAttempts;
   static final Map<String, WebSocket> _sockets = {};
@@ -82,7 +82,7 @@ class WebSocketCommunityChatRealtimeClient
 
     final socket = await WebSocket.connect(
       uriBuilder(communityId).toString(),
-      headers: headers,
+      headers: await headersProvider?.call(),
     );
     _sockets[communityId] = socket;
     return socket;
@@ -148,32 +148,5 @@ class SseCommunityChatRealtimeClient implements CommunityChatRealtimeClient {
 
     final decoded = jsonDecode(trimmed);
     return decoded is Map<String, Object?> ? decoded : null;
-  }
-}
-
-class MockCommunityChatRealtimeClient implements CommunityChatRealtimeClient {
-  @override
-  Stream<Map<String, Object?>> subscribe(String communityId) async* {
-    // 서버 없이 실시간 수신 UI를 확인하기 위한 지연 mock 이벤트다.
-    await Future<void>.delayed(const Duration(seconds: 8));
-
-    yield {
-      'id': 'event-mock-message-1',
-      'type': 'message.created',
-      'communityId': communityId,
-      'message': {
-        'id': 'message-realtime-1',
-        'communityId': communityId,
-        'authorId': 'user-2',
-        'authorName': 'Username2',
-        'text': '실시간으로 들어온 메시지 목업',
-        'createdAt': DateTime.now().toIso8601String(),
-      },
-    };
-  }
-
-  @override
-  Future<void> send(CommunityChatCommand command) async {
-    // 테스트/목업에서는 송신 성공만 흉내 내고 서버 push는 subscribe가 담당한다.
   }
 }

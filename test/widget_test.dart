@@ -3,12 +3,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:heimdall/app/heimdall_app.dart';
+import 'package:heimdall/features/auth/data/member_session_store.dart';
+import 'package:heimdall/features/auth/data/auth_token_store.dart';
+import 'package:heimdall/features/auth/domain/auth_member.dart';
 import 'package:heimdall/features/debate/domain/entities/community.dart';
+import 'package:heimdall/features/debate/data/mock_community_repository.dart';
+import 'package:heimdall/features/debate/presentation/providers/community_providers.dart';
 import 'package:heimdall/features/debate/presentation/screens/community_detail_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('shows community list entry screen', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: HeimdallApp()));
+  testWidgets('shows login as unauthenticated entry screen', (tester) async {
+    await _pumpHeimdall(tester);
+
+    expect(find.text('HEIMDALL'), findsOneWidget);
+    expect(find.text('로그인'), findsOneWidget);
+    expect(find.text('처음이신가요? 회원가입'), findsOneWidget);
+  });
+
+  testWidgets('shows community list for restored member session', (
+    tester,
+  ) async {
+    await _pumpHeimdall(tester, authenticated: true);
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('검색'), findsOneWidget);
@@ -26,13 +42,13 @@ void main() {
   });
 
   testWidgets('shows community creation form fields', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: HeimdallApp()));
+    await _pumpHeimdall(tester, authenticated: true);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('커뮤니티 생성'));
     await tester.pumpAndSettle();
 
-    expect(find.text('커뮤니티 생성'), findsOneWidget);
+    expect(find.text('토론 커뮤니티 생성'), findsOneWidget);
     expect(find.text('토론 테마 *', findRichText: true), findsOneWidget);
     expect(find.text('토론 주제 *', findRichText: true), findsOneWidget);
     expect(find.text('토론 설명'), findsOneWidget);
@@ -46,8 +62,8 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -700));
     await tester.pumpAndSettle();
 
-    expect(find.text('호스트 주장 *', findRichText: true), findsOneWidget);
-    expect(find.text('호스트 근거'), findsOneWidget);
+    expect(find.text('나의 주장 *', findRichText: true), findsOneWidget);
+    expect(find.text('근거'), findsOneWidget);
   });
 
   testWidgets('community detail screen fits narrow mobile width', (
@@ -66,7 +82,11 @@ void main() {
       status: CommunityStatus.live,
       host: const CommunityHost(name: '아주긴호스트이름', avatarColor: 0xFFC6F9FF),
       activeDebaters: const [
-        Debater(name: '아주긴호스트이름', side: DebateSide.pro, avatarColor: 0xFFC6F9FF),
+        Debater(
+          name: '아주긴호스트이름',
+          side: DebateSide.pro,
+          avatarColor: 0xFFC6F9FF,
+        ),
         Debater(name: '상대토론자', side: DebateSide.con, avatarColor: 0xFFFF5D5D),
       ],
       rounds: 3,
@@ -89,4 +109,39 @@ void main() {
     expect(find.text('호스트 근거'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+Future<void> _pumpHeimdall(
+  WidgetTester tester, {
+  bool authenticated = false,
+}) async {
+  SharedPreferences.setMockInitialValues(
+    authenticated
+        ? {
+            'auth.member.id': '00000000-0000-4000-8000-000000000001',
+            'auth.member.email': 'member@example.com',
+            'auth.member.displayName': '테스트회원',
+          }
+        : {},
+  );
+  final preferences = await SharedPreferences.getInstance();
+  final tokenStore = MemoryAuthTokenStore(
+    authenticated
+        ? const AuthTokens(accessToken: 'access', refreshToken: 'refresh')
+        : null,
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
+        authTokenStoreProvider.overrideWithValue(tokenStore),
+        communityRepositoryProvider.overrideWithValue(
+          MockCommunityRepository(),
+        ),
+      ],
+      child: const HeimdallApp(),
+    ),
+  );
+  await tester.pumpAndSettle();
 }

@@ -28,23 +28,47 @@ class MockCommunityChatRealtimeRepository
       );
     }
 
-    if (type == 'opening_statement.created') {
-      final notice = _parseOpeningStatementNotice(raw);
+    if (type == 'opinion.submitted') {
+      final notice = _parseOpinionNotice(raw);
       return CommunityChatEvent(
         id: raw['id'] as String,
         communityId: raw['communityId'] as String,
-        type: CommunityChatEventType.openingStatementCreated,
+        type: CommunityChatEventType.opinionSubmitted,
         message: CommunityChatMessage(
           id: notice.id,
           communityId: notice.communityId,
-          authorId: 'system',
-          authorName: 'System',
+          authorId: notice.authorId,
+          authorName: notice.authorName,
           text: '${notice.authorName} 님이 기조 발언을 작성했습니다.',
           relatedUserId: notice.authorId,
-          type: CommunityChatMessageType.openingStatementNotice,
+          opinionClaim: notice.claim,
+          opinionReasons: notice.reasons,
+          type: CommunityChatMessageType.opinionNotice,
           createdAt: notice.createdAt,
         ),
-        openingStatementNotice: notice,
+        opinionNotice: notice,
+      );
+    }
+
+    if (type == 'debate.started') {
+      final sideA = raw['sideASpeaker'] as Map<String, Object?>?;
+      final sideB = raw['sideBSpeaker'] as Map<String, Object?>?;
+      return CommunityChatEvent(
+        id: raw['id'] as String,
+        communityId: raw['communityId'] as String,
+        type: CommunityChatEventType.debateStarted,
+        debateId: raw['debateId'] as String,
+        sideASpeakerId: sideA?['id'] as String?,
+        sideBSpeakerId: sideB?['id'] as String?,
+      );
+    }
+
+    if (type == 'debate.ended') {
+      return CommunityChatEvent(
+        id: raw['id'] as String,
+        communityId: raw['communityId'] as String,
+        type: CommunityChatEventType.debateEnded,
+        debateId: raw['debateId'] as String,
       );
     }
 
@@ -64,18 +88,21 @@ class MockCommunityChatRealtimeRepository
     );
   }
 
-  CommunityOpeningStatementNotice _parseOpeningStatementNotice(
-    Map<String, Object?> raw,
-  ) {
-    // 기조발언 이벤트는 채팅 사이에 들어가는 시스템 메시지의 원본 데이터다.
-    final noticeRaw = raw['notice'] as Map<String, Object?>? ?? raw;
+  CommunityOpinionNotice _parseOpinionNotice(Map<String, Object?> raw) {
+    final noticeRaw = raw['opinion'] as Map<String, Object?>? ?? raw;
 
-    return CommunityOpeningStatementNotice(
-      id: raw['id'] as String,
+    return CommunityOpinionNotice(
+      id: noticeRaw['id'] as String,
       communityId: raw['communityId'] as String,
       authorId: noticeRaw['authorId'] as String,
       authorName: noticeRaw['authorName'] as String,
       createdAt: DateTime.parse(noticeRaw['createdAt'] as String),
+      claim: noticeRaw['claim'] as String,
+      reasons:
+          (noticeRaw['reasons'] as List<Object?>?)
+              ?.whereType<String>()
+              .toList() ??
+          const [],
     );
   }
 }

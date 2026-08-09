@@ -4,4 +4,7 @@ import '../domain/repositories/community_chat_repository.dart';
 class MockCommunityChatRepository implements CommunityChatRepository {
   @override
   Future<void> sendMessage(SendCommunityChatMessageRequest request) async {}
+
+  @override
+  Future<void> saveOpinion(SaveCommunityOpinionRequest request) async {}
 }

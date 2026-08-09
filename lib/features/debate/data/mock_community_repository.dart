@@ -1,8 +1,14 @@
+import 'package:dio/dio.dart';
+
 import '../domain/entities/debate_result.dart';
 import '../domain/entities/community.dart';
 import '../domain/entities/debate_turn.dart';
 
 class MockCommunityRepository {
+  MockCommunityRepository({Dio Function()? dioProvider})
+    : _dioProvider = dioProvider;
+
+  final Dio Function()? _dioProvider;
   final List<Community> _communities = [
     Community(
       id: 'room-1',
@@ -110,6 +116,28 @@ class MockCommunityRepository {
     }).toList();
   }
 
+  Future<List<Community>> fetchCommunities({
+    CommunityCategory category = CommunityCategory.all,
+    String query = '',
+  }) async {
+    final dioProvider = _dioProvider;
+    if (dioProvider != null) {
+      final response = await dioProvider().get<List<dynamic>>('/communities');
+      final data = response.data;
+      if (data != null) {
+        final remoteCommunities = data
+            .whereType<Map<String, dynamic>>()
+            .map(_communityFromJson)
+            .toList();
+        _communities
+          ..clear()
+          ..addAll(remoteCommunities);
+      }
+    }
+
+    return getCommunities(category: category, query: query);
+  }
+
   Community? getCommunityById(String id) {
     for (final room in _communities) {
       if (room.id == id) {
@@ -119,7 +147,54 @@ class MockCommunityRepository {
     return null;
   }
 
-  Community createCommunity({
+  Community _communityFromJson(Map<String, dynamic> json) {
+    final hostJson = json['host'];
+    final hostName = hostJson is Map<String, dynamic>
+        ? hostJson['displayName'] as String? ?? '호스트'
+        : '호스트';
+    final status = _communityStatus(json['status']);
+
+    return Community(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? '',
+      topic: json['topic'] as String? ?? '',
+      category: _communityCategory(json['category']),
+      status: status,
+      host: CommunityHost(
+        id: hostJson is Map<String, dynamic> ? hostJson['id'] as String? : null,
+        name: hostName,
+        avatarColor: 0xFFC6F9FF,
+      ),
+      activeDebaters: [
+        Debater(name: hostName, side: DebateSide.pro, avatarColor: 0xFFC6F9FF),
+      ],
+      rounds: (json['rounds'] as num?)?.toInt() ?? 1,
+      elapsedMinutes: 0,
+      observerCount: (json['memberCount'] as num?)?.toInt() ?? 0,
+      isPublic: json['isPublic'] as bool? ?? true,
+      createdAt:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      hostClaim: json['hostClaim'] as String? ?? '',
+      hostReasons:
+          (json['hostReasons'] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList() ??
+          const [],
+      isOwnedByCurrentUser: json['isOwnedByCurrentUser'] as bool? ?? false,
+      isJoined: json['isJoined'] as bool? ?? false,
+    );
+  }
+
+  CommunityCategory _communityCategory(Object? value) {
+    final normalized = value?.toString().toLowerCase();
+    return CommunityCategory.values.firstWhere(
+      (category) => category.name == normalized,
+      orElse: () => CommunityCategory.etc,
+    );
+  }
+
+  Future<Community> createCommunity({
     required String title,
     required String topic,
     required CommunityCategory category,
@@ -128,26 +203,136 @@ class MockCommunityRepository {
     required bool isPublic,
     required String hostClaim,
     required List<String> hostReasons,
-  }) {
+  }) async {
+    final request = {
+      'title': title,
+      'topic': topic,
+      'category': category.name.toUpperCase(),
+      'rounds': rounds,
+      'isPublic': isPublic,
+      'hostClaim': hostClaim,
+      'hostReasons': hostReasons,
+    };
+    final response = await _dioProvider?.call().post<Map<String, dynamic>>(
+      '/communities',
+      data: request,
+    );
+    final json = response?.data;
+    final hostJson = json?['host'];
     final room = Community(
-      id: 'room-${_communities.length + 1}',
+      id: json?['id'] as String? ?? 'room-${_communities.length + 1}',
       title: title,
       topic: topic,
       category: category,
-      status: CommunityStatus.waiting,
-      host: const CommunityHost(name: '나', avatarColor: 0xFF5659FF),
-      activeDebaters: [Debater(name: '나', side: side, avatarColor: 0xFF5659FF)],
+      status: _communityStatus(json?['status']),
+      host: CommunityHost(
+        id: hostJson is Map<String, dynamic> ? hostJson['id'] as String? : null,
+        name: hostJson is Map<String, dynamic>
+            ? hostJson['displayName'] as String? ?? '나'
+            : '나',
+        avatarColor: 0xFF5659FF,
+      ),
+      activeDebaters: [
+        Debater(
+          name: hostJson is Map<String, dynamic>
+              ? hostJson['displayName'] as String? ?? '나'
+              : '나',
+          side: side,
+          avatarColor: 0xFF5659FF,
+        ),
+      ],
       rounds: rounds,
       elapsedMinutes: 0,
       observerCount: 1,
       isPublic: isPublic,
-      createdAt: DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json?['createdAt'] as String? ?? '') ??
+          DateTime.now(),
       hostClaim: hostClaim,
       hostReasons: hostReasons,
       isOwnedByCurrentUser: true,
+      isJoined: true,
     );
     _communities.insert(0, room);
     return room;
+  }
+
+  Future<String> createAndStartDebate({
+    required Community community,
+    required String opponentMemberId,
+  }) async {
+    final hostMemberId = community.host.id;
+    if (hostMemberId == null || hostMemberId.isEmpty) {
+      throw StateError('커뮤니티 방장 ID가 없습니다.');
+    }
+    if (hostMemberId == opponentMemberId) {
+      throw StateError('방장 본인과는 토론을 시작할 수 없습니다.');
+    }
+
+    final dioProvider = _dioProvider;
+    if (dioProvider == null) {
+      throw StateError('토론 API가 연결되지 않았습니다.');
+    }
+    final dio = dioProvider();
+    final response = await dio.post<Map<String, dynamic>>(
+      '/communities/${community.id}/debates/start',
+      data: {'opponentMemberId': opponentMemberId},
+    );
+    final debateId = response.data?['id'] as String?;
+    if (debateId == null || debateId.isEmpty) {
+      throw StateError('생성된 토론 ID가 없습니다.');
+    }
+
+    return debateId;
+  }
+
+  Future<void> joinCommunity(String communityId) async {
+    final dioProvider = _dioProvider;
+    if (dioProvider == null) {
+      return;
+    }
+    await dioProvider().post<void>('/communities/$communityId/members/me');
+  }
+
+  Future<List<CommunityMemberSummary>> fetchCommunityMembers(
+    String communityId,
+  ) async {
+    final dioProvider = _dioProvider;
+    if (dioProvider == null) {
+      return const [];
+    }
+    final response = await dioProvider().get<List<dynamic>>(
+      '/communities/$communityId/members',
+    );
+    return (response.data ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (json) => CommunityMemberSummary(
+            id: json['id'] as String,
+            displayName: json['displayName'] as String? ?? '멤버',
+            profileImageUrl: json['profileImageUrl'] as String?,
+            role: json['role'] as String? ?? 'MEMBER',
+            debateIntent: json['debateIntent'] as String? ?? 'OPEN_TO_DEBATE',
+            joinedAt:
+                DateTime.tryParse(json['joinedAt'] as String? ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> updateCommunityDebateIntent({
+    required String communityId,
+    required bool wantsToDebate,
+  }) async {
+    final dioProvider = _dioProvider;
+    if (dioProvider == null) {
+      return;
+    }
+    await dioProvider().put<void>(
+      '/communities/$communityId/members/me/debate-intent',
+      data: {'debateIntent': wantsToDebate ? 'OPEN_TO_DEBATE' : 'PREPARING'},
+    );
   }
 
   List<DebateTurn> getTurns(Community room) {
@@ -195,7 +380,7 @@ class MockCommunityRepository {
 
   DebateResult getResult(Community room) {
     return const DebateResult(
-      winner: DebateSide.pro,
+      winner: DebateWinner.pro,
       scores: [
         DebateScore(
           side: DebateSide.pro,
@@ -220,4 +405,12 @@ class MockCommunityRepository {
       feedback: '다음 토론에서는 핵심 주장마다 하나 이상의 구체적 사례나 수치를 붙이면 설득력이 올라갑니다.',
     );
   }
+}
+
+CommunityStatus _communityStatus(Object? raw) {
+  return switch (raw) {
+    'ACTIVE' => CommunityStatus.live,
+    'CLOSED' => CommunityStatus.finished,
+    _ => CommunityStatus.waiting,
+  };
 }

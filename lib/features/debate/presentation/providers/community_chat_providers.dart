@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/config/app_environment.dart';
+import '../../../../core/network/dio_provider.dart';
+import '../../../auth/data/auth_token_store.dart';
 import '../../data/community_chat_realtime_client.dart';
 import '../../data/mock_community_chat_realtime_repository.dart';
 import '../../data/websocket_community_chat_repository.dart';
@@ -17,15 +20,18 @@ final communityChatRepositoryProvider = Provider<CommunityChatRepository>((
 
 final communityChatRealtimeClientProvider =
     Provider<CommunityChatRealtimeClient>((ref) {
-      // 실행 환경별 WebSocket 서버 주소를 dart-define으로 바꿀 수 있게 한다.
-      const websocketBaseUrl = String.fromEnvironment(
-        'WEBSOCKET_BASE_URL',
-        defaultValue: 'ws://localhost:8080',
-      );
+      final websocketBaseUrl = AppEnvironment.communityWebSocketBaseUrl;
+      final tokenStore = ref.watch(authTokenStoreProvider);
 
       return WebSocketCommunityChatRealtimeClient(
         uriBuilder: (communityId) =>
             Uri.parse('$websocketBaseUrl/communities/$communityId/chat'),
+        headersProvider: () async {
+          final accessToken = (await tokenStore.read())?.accessToken;
+          return {
+            if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+          };
+        },
       );
     });
 
@@ -43,12 +49,45 @@ final communityChatEventsProvider =
       return repository.watchEvents(communityId);
     });
 
+final communityChatHistoryProvider =
+    FutureProvider.family<List<CommunityChatMessage>, String>((
+      ref,
+      communityId,
+    ) async {
+      final response = await ref
+          .watch(dioProvider)
+          .get<List<dynamic>>('/communities/$communityId/messages');
+      return (response.data ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(_communityMessageFromJson)
+          .toList();
+    });
+
+final communityOpinionHistoryProvider =
+    FutureProvider.family<List<CommunityChatMessage>, String>((
+      ref,
+      communityId,
+    ) async {
+      final response = await ref
+          .watch(dioProvider)
+          .get<List<dynamic>>('/communities/$communityId/opinions');
+      return (response.data ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(_communityOpinionNoticeFromJson)
+          .toList();
+    });
+
 final sendCommunityChatMessageProvider =
     AsyncNotifierProvider.family<
       SendCommunityChatMessageNotifier,
       void,
       String
     >((communityId) => SendCommunityChatMessageNotifier(communityId));
+
+final saveCommunityOpinionProvider =
+    AsyncNotifierProvider.family<SaveCommunityOpinionNotifier, void, String>(
+      (communityId) => SaveCommunityOpinionNotifier(communityId),
+    );
 
 class SendCommunityChatMessageNotifier extends AsyncNotifier<void> {
   SendCommunityChatMessageNotifier(this.communityId);
@@ -78,4 +117,61 @@ class SendCommunityChatMessageNotifier extends AsyncNotifier<void> {
 
     state = const AsyncData(null);
   }
+}
+
+class SaveCommunityOpinionNotifier extends AsyncNotifier<void> {
+  SaveCommunityOpinionNotifier(this.communityId);
+
+  final String communityId;
+
+  @override
+  Future<void> build() async {}
+
+  Future<void> save({
+    required String claim,
+    required List<String> reasons,
+  }) async {
+    state = const AsyncLoading();
+    await ref
+        .read(communityChatRepositoryProvider)
+        .saveOpinion(
+          SaveCommunityOpinionRequest(
+            communityId: communityId,
+            claim: claim,
+            reasons: reasons,
+          ),
+        );
+    state = const AsyncData(null);
+  }
+}
+
+CommunityChatMessage _communityMessageFromJson(Map<String, dynamic> json) {
+  return CommunityChatMessage(
+    id: json['id'] as String,
+    communityId: json['communityId'] as String,
+    clientMessageId: json['clientMessageId'] as String?,
+    authorId: json['authorId'] as String,
+    authorName: json['authorName'] as String,
+    text: json['text'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
+}
+
+CommunityChatMessage _communityOpinionNoticeFromJson(
+  Map<String, dynamic> json,
+) {
+  return CommunityChatMessage(
+    id: json['id'] as String,
+    communityId: json['communityId'] as String,
+    authorId: json['authorId'] as String,
+    authorName: json['authorName'] as String,
+    text: '${json['authorName']} 님이 기조 발언을 작성했습니다.',
+    relatedUserId: json['authorId'] as String,
+    opinionClaim: json['claim'] as String,
+    opinionReasons:
+        (json['reasons'] as List<dynamic>?)?.whereType<String>().toList() ??
+        const [],
+    type: CommunityChatMessageType.opinionNotice,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
 }

@@ -5,9 +5,13 @@ abstract final class AppAssets {
   static const timerIcon = 'assets/figma/icon_timer.svg';
   static const timerUpcomingIcon = 'assets/figma/icon_timer_upcoming.svg';
   static const trophyIcon = 'assets/figma/icon_trophy.svg';
+  static const debatePreparingIcon = 'assets/figma/icon_debate_preparing.svg';
   static const repeatIcon = 'assets/figma/repeat.svg';
   static const avatarBlue = 'assets/figma/avatar_blue.jpeg';
   static const avatarRed = 'assets/figma/avatar_red.jpeg';
+  static const profilePopupAvatar = 'assets/figma/profile_popup_avatar.png';
+  static const profilePopupClose = 'assets/figma/profile_popup_close.svg';
+  static const profilePopupTrophy = 'assets/figma/profile_popup_trophy.svg';
   static const communityHostAvatar = 'assets/figma/community_host_avatar.png';
   static const appIcon = 'assets/figma/app_icon.png';
   static const debateListReference = 'assets/figma/debate_list_reference.png';

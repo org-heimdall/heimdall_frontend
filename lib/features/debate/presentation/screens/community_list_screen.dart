@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../domain/entities/community.dart';
 import '../providers/community_providers.dart';
 import '../widgets/community_category_chip.dart';
 import '../widgets/community_list_header.dart';
 import '../widgets/community_card.dart';
+import '../widgets/debate_forfeit_dialog.dart';
 
 class CommunityListScreen extends ConsumerStatefulWidget {
   const CommunityListScreen({super.key});
@@ -23,7 +25,8 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(communityFilterProvider);
-    final rooms = ref.watch(communitiesProvider);
+    final roomsAsync = ref.watch(communitiesProvider);
+    final rooms = roomsAsync.asData?.value ?? const <Community>[];
     final enteredCommunityIds = ref.watch(enteredCommunityProvider);
 
     return Scaffold(
@@ -47,6 +50,7 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
                                 .read(communityFilterProvider.notifier)
                                 .setQuery(value);
                           },
+                          onLogout: _confirmLogout,
                         ),
                         const SizedBox(height: 16),
                         SizedBox(
@@ -122,7 +126,22 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
                     ),
                   ),
                 ),
-                if (rooms.isEmpty)
+                if (roomsAsync.isLoading)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (roomsAsync.hasError)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        '커뮤니티를 불러오지 못했습니다.',
+                        style: TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                  )
+                else if (rooms.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
@@ -191,7 +210,7 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
   }
 
   void _openCommunity(Community community, bool hasEntered) {
-    if (!hasEntered) {
+    if (!community.isJoined && !hasEntered) {
       context.push('/communities/${community.id}');
       return;
     }
@@ -200,5 +219,25 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
         ? '/communities/${community.id}/chat?role=host'
         : '/communities/${community.id}/chat';
     context.push(location);
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (dialogContext) => DebateConfirmationDialog(
+        icon: Icons.logout_rounded,
+        title: '로그아웃하시겠습니까?',
+        description: '현재 계정에서 로그아웃하고 로그인 화면으로 이동합니다.',
+        cancelLabel: '아니오',
+        confirmLabel: '로그아웃',
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onConfirm: () => Navigator.pop(dialogContext, true),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await ref.read(authControllerProvider.notifier).logout();
+    }
   }
 }

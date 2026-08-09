@@ -1,5 +1,14 @@
 import 'community.dart';
 
+enum DebateWinner {
+  pro('찬성'),
+  con('반대'),
+  draw('무승부');
+
+  const DebateWinner(this.label);
+  final String label;
+}
+
 class DebateScore {
   const DebateScore({
     required this.side,
@@ -30,7 +39,7 @@ class DebateResult {
     required this.feedback,
   });
 
-  final DebateSide winner;
+  final DebateWinner winner;
   final List<DebateScore> scores;
   final String reason;
   final List<String> strengths;
