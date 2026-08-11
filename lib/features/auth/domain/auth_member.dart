@@ -4,18 +4,21 @@ class AuthMember {
     required this.email,
     required this.displayName,
     required this.profileImageUrl,
+    required this.score,
   });
 
   final String id;
   final String email;
   final String displayName;
   final String? profileImageUrl;
+  final int score;
 
   factory AuthMember.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
     final email = json['email'];
     final displayName = json['displayName'];
     final profileImageUrl = json['profileImageUrl'];
+    final score = json['score'];
 
     if (id is! String || id.isEmpty) {
       throw const FormatException('회원 ID가 올바르지 않습니다.');
@@ -35,6 +38,7 @@ class AuthMember {
       email: email,
       displayName: displayName,
       profileImageUrl: profileImageUrl as String?,
+      score: score is num ? score.toInt() : 0,
     );
   }
 }

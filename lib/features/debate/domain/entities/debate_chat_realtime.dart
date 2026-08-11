@@ -92,11 +92,13 @@ class DebateSpeaker {
   const DebateSpeaker({
     required this.id,
     required this.displayName,
+    required this.score,
     this.profileImageUrl,
   });
 
   final String id;
   final String displayName;
+  final int score;
   final String? profileImageUrl;
 }
 
@@ -105,21 +107,34 @@ class DebateDetail {
     required this.id,
     required this.communityId,
     required this.status,
+    required this.rebuttalQuestionRounds,
     required this.sideASpeaker,
     required this.sideBSpeaker,
     required this.viewerSide,
     required this.startedAt,
     required this.expiresAt,
+    required this.judgingStartedAt,
   });
+
+  static const judgeRetryStaleDuration = Duration(minutes: 5);
 
   final String id;
   final String communityId;
   final String status;
+  final int rebuttalQuestionRounds;
   final DebateSpeaker sideASpeaker;
   final DebateSpeaker sideBSpeaker;
   final String? viewerSide;
   final DateTime? startedAt;
   final DateTime? expiresAt;
+  final DateTime? judgingStartedAt;
+
+  bool canRetryJudgeAt(DateTime now) {
+    final startedAt = judgingStartedAt;
+    return status == 'JUDGING' &&
+        startedAt != null &&
+        !now.isBefore(startedAt.add(judgeRetryStaleDuration));
+  }
 }
 
 enum DebateChatRealtimeEventType {

@@ -12,6 +12,7 @@ class CommunityMember extends StatefulWidget {
     required this.members,
     required this.onClose,
     this.onProfileTap,
+    this.onMemberProfileTap,
     this.profileImageUrl,
     this.userScore,
     this.initialWantsToDebate = true,
@@ -32,6 +33,7 @@ class CommunityMember extends StatefulWidget {
   final List<CommunityMemberSummary> members;
   final VoidCallback onClose;
   final VoidCallback? onProfileTap;
+  final ValueChanged<String>? onMemberProfileTap;
   final bool showHostActions;
   final VoidCallback? onDeleteCommunity;
   final VoidCallback? onLeaveCommunity;
@@ -224,8 +226,8 @@ class _CommunityMemberState extends State<CommunityMember> {
                                     DecoratedBox(
                                       decoration: const BoxDecoration(
                                         color: AppColors.background,
-                                        borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(10),
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(10),
                                         ),
                                       ),
                                       child: Column(
@@ -236,10 +238,18 @@ class _CommunityMemberState extends State<CommunityMember> {
                                             index++
                                           )
                                             _MemberTile(
+                                              memberId: members[index].id,
                                               name: members[index].displayName,
                                               isHost: members[index].isHost,
+                                              wantsToDebate:
+                                                  members[index].id ==
+                                                      widget.currentMemberId
+                                                  ? _wantsToDebate
+                                                  : members[index]
+                                                        .wantsToDebate,
                                               showDivider:
                                                   index < members.length - 1,
+                                              onTap: widget.onMemberProfileTap,
                                             ),
                                         ],
                                       ),
@@ -598,50 +608,83 @@ class _DebateIntentButton extends StatelessWidget {
 
 class _MemberTile extends StatelessWidget {
   const _MemberTile({
+    required this.memberId,
     required this.name,
     required this.isHost,
+    required this.wantsToDebate,
     required this.showDivider,
+    required this.onTap,
   });
 
+  final String memberId;
   final String name;
   final bool isHost;
+  final bool wantsToDebate;
   final bool showDivider;
+  final ValueChanged<String>? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 62,
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: const Color(0xFFE2E3E5),
-                  backgroundImage: isHost
-                      ? const AssetImage(AppAssets.communityHostAvatar)
-                      : null,
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 16,
-                      height: 1.5,
-                      fontWeight: FontWeight.w500,
+    return InkWell(
+      onTap: onTap == null ? null : () => onTap!(memberId),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 62,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFFE2E3E5),
+                    backgroundImage: isHost
+                        ? const AssetImage(AppAssets.communityHostAvatar)
+                        : null,
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 16,
+                        height: 1.5,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  Tooltip(
+                    message: wantsToDebate ? '토론할래요' : '준비할래요',
+                    child: SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: Center(
+                        child: wantsToDebate
+                            ? const Icon(
+                                Icons.search_rounded,
+                                size: 24,
+                                color: Color(0xFFA4A7FF),
+                              )
+                            : SvgPicture.asset(
+                                AppAssets.debatePreparingIcon,
+                                width: 24,
+                                height: 22,
+                                colorFilter: const ColorFilter.mode(
+                                  Color(0xFFA7B4BF),
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (showDivider)
-            const Divider(height: 1, thickness: 1, color: AppColors.divider),
-        ],
+            if (showDivider)
+              const Divider(height: 1, thickness: 1, color: AppColors.divider),
+          ],
+        ),
       ),
     );
   }

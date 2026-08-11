@@ -74,6 +74,10 @@ class EnteredCommunityNotifier extends Notifier<Set<String>> {
   void markEntered(String communityId) {
     state = {...state, communityId};
   }
+
+  void markLeft(String communityId) {
+    state = {...state}..remove(communityId);
+  }
 }
 
 final enteredCommunityProvider =

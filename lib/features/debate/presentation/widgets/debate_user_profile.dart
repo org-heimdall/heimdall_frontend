@@ -9,14 +9,14 @@ class DebateUserProfileChip extends StatelessWidget {
     required this.name,
     required this.score,
     this.active = true,
-    this.avatarAsset = AppAssets.avatarBlue,
+    this.avatarUrl,
     super.key,
   });
 
   final String name;
   final int score;
   final bool active;
-  final String avatarAsset;
+  final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +32,7 @@ class DebateUserProfileChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ClipOval(
-            child: Image.asset(
-              avatarAsset,
-              width: 36,
-              height: 36,
-              fit: BoxFit.cover,
-            ),
-          ),
+          _MemberAvatar(name: name, imageUrl: avatarUrl),
           const SizedBox(width: 6),
           SizedBox(
             width: 76,
@@ -97,6 +90,55 @@ class DebateUserProfileChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MemberAvatar extends StatelessWidget {
+  const _MemberAvatar({required this.name, required this.imageUrl});
+
+  final String name;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedUrl = imageUrl?.trim();
+    return ClipOval(
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: normalizedUrl == null || normalizedUrl.isEmpty
+            ? _AvatarFallback(name: name)
+            : Image.network(
+                normalizedUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _AvatarFallback(name: name),
+              ),
+      ),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = name.trim();
+    return ColoredBox(
+      color: AppColors.surfaceElevated,
+      child: Center(
+        child: Text(
+          normalizedName.isEmpty ? '?' : normalizedName.characters.first,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

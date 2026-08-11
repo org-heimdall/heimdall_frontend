@@ -32,13 +32,14 @@ class CommunityUserProfileRepository {
     return CommunityUserProfile(
       userId: member['id'] as String,
       userName: member['displayName'] as String,
-      score: 0,
+      score: (member['score'] as num?)?.toInt() ?? 0,
       claim: opinion?['claim'] as String? ?? '등록된 기조 발언이 없습니다.',
       reasons:
           (opinion?['reasons'] as List<dynamic>?)
               ?.whereType<String>()
               .toList() ??
           const [],
+      profileImageUrl: member['profileImageUrl'] as String?,
     );
   }
 }

@@ -11,6 +11,7 @@ class DebatePopupSheet extends StatelessWidget {
     required this.score,
     required this.claim,
     required this.reasons,
+    this.profileImageUrl,
     this.role = DebatePopupRole.participant,
     this.onClose,
     this.onDebate,
@@ -21,6 +22,7 @@ class DebatePopupSheet extends StatelessWidget {
   final int score;
   final String claim;
   final List<String> reasons;
+  final String? profileImageUrl;
   final DebatePopupRole role;
   final VoidCallback? onClose;
   final VoidCallback? onDebate;
@@ -69,7 +71,11 @@ class DebatePopupSheet extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _PopupUserSummary(userName: userName, score: score),
+                            _PopupUserSummary(
+                              userName: userName,
+                              score: score,
+                              profileImageUrl: profileImageUrl,
+                            ),
                             const SizedBox(height: 12),
                             _ReadonlyField(label: '주장', text: claim),
                             const SizedBox(height: 24),
@@ -118,24 +124,22 @@ class DebatePopupSheet extends StatelessWidget {
 enum DebatePopupRole { host, participant }
 
 class _PopupUserSummary extends StatelessWidget {
-  const _PopupUserSummary({required this.userName, required this.score});
+  const _PopupUserSummary({
+    required this.userName,
+    required this.score,
+    required this.profileImageUrl,
+  });
 
   final String userName;
   final int score;
+  final String? profileImageUrl;
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
         children: [
-          ClipOval(
-            child: Image.asset(
-              AppAssets.profilePopupAvatar,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-            ),
-          ),
+          _PopupAvatar(userName: userName, imageUrl: profileImageUrl),
           const SizedBox(height: 12),
           Text(
             userName,
@@ -150,6 +154,56 @@ class _PopupUserSummary extends StatelessWidget {
           const SizedBox(height: 8),
           _ProfileScoreBadge(score: score),
         ],
+      ),
+    );
+  }
+}
+
+class _PopupAvatar extends StatelessWidget {
+  const _PopupAvatar({required this.userName, required this.imageUrl});
+
+  final String userName;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedUrl = imageUrl?.trim();
+    return ClipOval(
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: normalizedUrl == null || normalizedUrl.isEmpty
+            ? _PopupAvatarFallback(userName: userName)
+            : Image.network(
+                normalizedUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) =>
+                    _PopupAvatarFallback(userName: userName),
+              ),
+      ),
+    );
+  }
+}
+
+class _PopupAvatarFallback extends StatelessWidget {
+  const _PopupAvatarFallback({required this.userName});
+
+  final String userName;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = userName.trim();
+    return ColoredBox(
+      color: AppColors.primarySoft,
+      child: Center(
+        child: Text(
+          normalizedName.isEmpty ? '?' : normalizedName.characters.first,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 30,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

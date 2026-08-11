@@ -21,6 +21,7 @@ import '../widgets/community_opinion.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_message_tile.dart';
 import '../widgets/debate_popup_sheet.dart';
+import '../widgets/debate_forfeit_dialog.dart';
 import '../widgets/debate_start_dialog.dart';
 import '../widgets/observer_view.dart';
 
@@ -45,6 +46,8 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   late final ChatMessageTimeline _timeline;
   bool _startingDebate = false;
   bool _navigatingToDebate = false;
+  bool _didScrollToInitialHistory = false;
+  bool _didCheckInitialOpinion = false;
 
   @override
   void initState() {
@@ -88,18 +91,42 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   @override
   Widget build(BuildContext context) {
     final currentMember = ref.watch(currentMemberProvider);
-    final messageHistory = ref
-        .watch(communityChatHistoryProvider(widget.community.id))
-        .asData
-        ?.value;
-    final opinionHistory = ref
-        .watch(communityOpinionHistoryProvider(widget.community.id))
-        .asData
-        ?.value;
+    final messageHistoryAsync = ref.watch(
+      communityChatHistoryProvider(widget.community.id),
+    );
+    final opinionHistoryAsync = ref.watch(
+      communityOpinionHistoryProvider(widget.community.id),
+    );
+    final messageHistory = messageHistoryAsync.asData?.value;
+    final opinionHistory = opinionHistoryAsync.asData?.value;
     final visibleMessages = _orderedMessagesWithHistory(
       messageHistory ?? const <CommunityChatMessage>[],
       opinionHistory ?? const <CommunityChatMessage>[],
     );
+    final hasMyOpinion =
+        currentMember != null &&
+        opinionHistory?.any(
+              (message) => message.authorId == currentMember.id,
+            ) ==
+            true;
+    if (!_didCheckInitialOpinion &&
+        currentMember != null &&
+        opinionHistory != null) {
+      _didCheckInitialOpinion = true;
+      if (!hasMyOpinion && widget.viewerRole != CommunityChatViewerRole.host) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            unawaited(_showOpinionSheet());
+          }
+        });
+      }
+    }
+    if (!_didScrollToInitialHistory &&
+        !messageHistoryAsync.isLoading &&
+        !opinionHistoryAsync.isLoading) {
+      _didScrollToInitialHistory = true;
+      _scrollToBottomAfterBuild();
+    }
     // WebSocket 이벤트를 화면 메시지 목록에 반영해 실시간 채팅 UX를 만든다.
     ref.listen<AsyncValue<CommunityChatEvent>>(
       communityChatEventsProvider(widget.community.id),
@@ -117,6 +144,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               community: widget.community,
               viewerRole: widget.viewerRole,
               onBack: _handleBack,
+              onTitleTap: _showDebateInfo,
               onWatch: _showObserverView,
               onMore: () => _showCommunityMembers(),
             ),
@@ -129,7 +157,8 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                     if (message.type == CommunityChatMessageType.opinionNotice)
                       _DiscussionGuide(
                         message: message,
-                        onStatementTap: () => _showOpinion(message),
+                        onStatementTap: () =>
+                            _showUserProfileByUserId(message.authorId),
                       )
                     else
                       ChatMessageTile(
@@ -150,7 +179,8 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
             ),
             ChatComposer(
               controller: _messageController,
-              hintText: '관전방에서 대화하기',
+              enabled: hasMyOpinion,
+              hintText: hasMyOpinion ? '관전방에서 대화하기' : '기조 발언 작성 후 채팅할 수 있습니다',
               onSend: _send,
               leading: [
                 _CircleIconButton(
@@ -165,7 +195,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                   icon: Icons.image_outlined,
                   color: AppColors.surfaceElevated,
                   foreground: AppColors.textSecondary,
-                  onTap: () {},
+                  onTap: hasMyOpinion ? () {} : null,
                 ),
               ],
             ),
@@ -181,6 +211,17 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       return;
     }
     context.go('/');
+  }
+
+  void _showDebateInfo() {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.58),
+      builder: (_) => DebateStartDialog(
+        community: widget.community,
+        showActionButtons: false,
+      ),
+    );
   }
 
   Future<void> _showCommunityMembers() async {
@@ -235,6 +276,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                 userName: currentMember.displayName,
                 currentMemberId: currentMember.id,
                 profileImageUrl: currentMember.profileImageUrl,
+                userScore: currentMember.score,
                 members: members,
                 initialWantsToDebate: currentMembership?.wantsToDebate ?? true,
                 onDebateIntentChanged: (wantsToDebate) async {
@@ -250,13 +292,16 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                   currentMember.id,
                   allowDebate: false,
                 ),
+                onMemberProfileTap: (memberId) => _showUserProfileByUserId(
+                  memberId,
+                  allowDebate: memberId != currentMember.id,
+                ),
                 onClose: () => Navigator.pop(dialogContext),
                 showHostActions:
                     widget.viewerRole == CommunityChatViewerRole.host,
                 onDeleteCommunity: () =>
                     _showHostActionFeedback('커뮤니티 삭제 기능은 준비 중입니다.'),
-                onLeaveCommunity: () =>
-                    _showHostActionFeedback('채팅방 나가기 기능은 준비 중입니다.'),
+                onLeaveCommunity: () => _confirmLeaveCommunity(dialogContext),
                 onReport: () => _showHostActionFeedback('신고 기능은 준비 중입니다.'),
               ),
             ),
@@ -279,6 +324,43 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _confirmLeaveCommunity(BuildContext memberPanelContext) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (dialogContext) => DebateConfirmationDialog(
+        icon: Icons.logout_rounded,
+        title: '채팅방을 나가시겠습니까?',
+        description: '참여 정보와 기조 발언이 삭제되며, 다시 입장하면 기조 발언을 새로 작성해야 합니다.',
+        cancelLabel: '취소',
+        confirmLabel: '나가기',
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onConfirm: () => Navigator.pop(dialogContext, true),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref
+          .read(communityRepositoryProvider)
+          .leaveCommunity(widget.community.id);
+      ref.read(enteredCommunityProvider.notifier).markLeft(widget.community.id);
+      ref.invalidate(communitiesProvider);
+      ref.invalidate(communityMembersProvider(widget.community.id));
+      ref.invalidate(communityOpinionHistoryProvider(widget.community.id));
+      if (!mounted) return;
+      if (memberPanelContext.mounted) {
+        Navigator.pop(memberPanelContext);
+      }
+      context.go('/');
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('채팅방에서 나가지 못했습니다.')));
+    }
   }
 
   Future<void> _showObserverView() async {
@@ -569,6 +651,13 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       return;
     }
 
+    if (event.type == CommunityChatEventType.messageCreated) {
+      // 서버 저장이 완료된 이벤트를 받으면 재입장용 REST 이력도 최신화한다.
+      ref.invalidate(communityChatHistoryProvider(widget.community.id));
+    } else if (event.type == CommunityChatEventType.opinionSubmitted) {
+      ref.invalidate(communityOpinionHistoryProvider(widget.community.id));
+    }
+
     final wasNearBottom = _isNearBottom;
     _timeline.applyEvent(event);
     if (wasNearBottom) {
@@ -648,6 +737,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
             child: DebatePopupSheet(
               userName: profile.userName,
               score: profile.score,
+              profileImageUrl: profile.profileImageUrl,
               claim: profile.claim,
               reasons: profile.reasons,
               role: canStartDebate
@@ -658,37 +748,6 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                   ? () async {
                       Navigator.pop(dialogContext);
                       await _confirmAndStartDebate(profile.userId);
-                    }
-                  : null,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showOpinion(CommunityChatMessage message) {
-    final canStartDebate = widget.community.isOwnedByCurrentUser;
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.58),
-      builder: (dialogContext) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: DebatePopupSheet(
-              userName: message.authorName,
-              score: 0,
-              claim: message.opinionClaim ?? '',
-              reasons: message.opinionReasons,
-              role: canStartDebate
-                  ? DebatePopupRole.host
-                  : DebatePopupRole.participant,
-              onClose: () => Navigator.pop(dialogContext),
-              onDebate: canStartDebate
-                  ? () async {
-                      Navigator.pop(dialogContext);
-                      await _confirmAndStartDebate(message.authorId);
                     }
                   : null,
             ),
@@ -763,6 +822,7 @@ class _WatchRoomHeader extends StatefulWidget {
     required this.community,
     required this.viewerRole,
     required this.onBack,
+    required this.onTitleTap,
     required this.onWatch,
     required this.onMore,
   });
@@ -770,6 +830,7 @@ class _WatchRoomHeader extends StatefulWidget {
   final Community community;
   final CommunityChatViewerRole viewerRole;
   final VoidCallback onBack;
+  final VoidCallback onTitleTap;
   final VoidCallback onWatch;
   final VoidCallback onMore;
 
@@ -810,15 +871,22 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
                   tooltip: '뒤로',
                 ),
                 Expanded(
-                  child: Text(
-                    widget.community.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 21,
-                      height: 1.4,
-                      fontWeight: FontWeight.w600,
+                  child: InkWell(
+                    onTap: widget.onTitleTap,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        widget.community.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 21,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),

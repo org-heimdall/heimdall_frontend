@@ -28,6 +28,19 @@ class HttpDebateChatRepository implements DebateChatRepository {
   }
 
   @override
+  Future<void> forfeitDebate(String debateId) async {
+    await _dio.post<void>('/debates/$debateId/forfeit');
+  }
+
+  @override
+  Future<void> retryJudge(String debateId) async {
+    await _dio.post<void>(
+      '/debates/$debateId/judge/retry',
+      options: Options(receiveTimeout: const Duration(minutes: 5)),
+    );
+  }
+
+  @override
   Future<DebateResult> getDebateResult(String debateId) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/debates/$debateId/result',
@@ -72,11 +85,13 @@ class HttpDebateChatRepository implements DebateChatRepository {
       id: _requiredString(json, 'id'),
       communityId: _requiredString(json, 'communityId'),
       status: _requiredString(json, 'status'),
+      rebuttalQuestionRounds: _requiredInt(json, 'rebuttalQuestionRounds'),
       sideASpeaker: _speaker(json['sideASpeaker'], 'sideASpeaker'),
       sideBSpeaker: _speaker(json['sideBSpeaker'], 'sideBSpeaker'),
       viewerSide: json['viewerSide'] as String?,
       startedAt: _optionalDate(json['startedAt']),
       expiresAt: _optionalDate(json['expiresAt']),
+      judgingStartedAt: _optionalDate(json['judgingStartedAt']),
     );
   }
 
@@ -220,6 +235,7 @@ class HttpDebateChatRepository implements DebateChatRepository {
     return DebateSpeaker(
       id: _requiredString(raw, 'id'),
       displayName: _requiredString(raw, 'displayName'),
+      score: _requiredInt(raw, 'score'),
       profileImageUrl: raw['profileImageUrl'] as String?,
     );
   }

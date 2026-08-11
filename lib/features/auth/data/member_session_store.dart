@@ -29,6 +29,7 @@ class MemberSessionStore {
   static const _emailKey = 'auth.member.email';
   static const _displayNameKey = 'auth.member.displayName';
   static const _profileImageUrlKey = 'auth.member.profileImageUrl';
+  static const _scoreKey = 'auth.member.score';
 
   final SharedPreferences _preferences;
 
@@ -46,6 +47,7 @@ class MemberSessionStore {
       email: email,
       displayName: displayName,
       profileImageUrl: _preferences.getString(_profileImageUrlKey),
+      score: _preferences.getInt(_scoreKey) ?? 0,
     );
   }
 
@@ -54,6 +56,7 @@ class MemberSessionStore {
       _preferences.setString(_idKey, member.id),
       _preferences.setString(_emailKey, member.email),
       _preferences.setString(_displayNameKey, member.displayName),
+      _preferences.setInt(_scoreKey, member.score),
       if (member.profileImageUrl case final profileImageUrl?)
         _preferences.setString(_profileImageUrlKey, profileImageUrl)
       else
@@ -67,6 +70,7 @@ class MemberSessionStore {
       _preferences.remove(_emailKey),
       _preferences.remove(_displayNameKey),
       _preferences.remove(_profileImageUrlKey),
+      _preferences.remove(_scoreKey),
     ]);
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/community.dart';
 import '../../domain/entities/community_chat.dart';
@@ -64,6 +64,11 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
   DebateDetail? _debateDetail;
   bool _isExpired = false;
   bool _endDialogShown = false;
+  bool _isForfeiting = false;
+  bool _isRetryingJudge = false;
+  bool _judgeRetryDialogVisible = false;
+  DateTime? _judgeRetryPromptDismissedUntil;
+  ValueNotifier<int>? _progressStepNotifier;
   late final ChatMessageTimeline _timeline;
 
   @override
@@ -91,6 +96,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     _messageController.dispose();
     _messageFocusNode.dispose();
     _scrollController.dispose();
+    _progressStepNotifier = null;
     super.dispose();
   }
 
@@ -133,7 +139,13 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
                     title: widget.community.title,
                     hostName: host.name,
                     opponentName: opponent.name,
+                    hostScore: _debateDetail?.sideASpeaker.score ?? 0,
+                    opponentScore: _debateDetail?.sideBSpeaker.score ?? 0,
+                    hostAvatarUrl: _debateDetail?.sideASpeaker.profileImageUrl,
+                    opponentAvatarUrl:
+                        _debateDetail?.sideBSpeaker.profileImageUrl,
                     remainingLabel: _totalRemainingLabel,
+                    remainingProgress: _totalRemainingProgress,
                     onOpponentTap: _showOpponentOpeningStatement,
                     onBack: _showForfeitDialog,
                   ),
@@ -145,19 +157,19 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
                       padding: const EdgeInsets.only(top: 12, bottom: 18),
                       children: [
                         const DiscussionGuide(),
-                        for (final message in _timeline.orderedMessages)
-                          ChatMessageTile(
-                            message: message,
-                            isMine: message.authorId == 'me',
-                            avatar: const _DebateAvatar(),
-                            onRetry: () => _retryMessage(message),
-                          ),
                         DiscussionGuide(
                           lines: [
                             '두 세계가 연결되었습니다. 예의를 갖추어 토론에 임하세요.',
                             '${host.name}님, 당신의 세계를 증명할 ‘입론’을 시작하세요.',
                           ],
                         ),
+                        for (final message in _timeline.orderedMessages)
+                          ChatMessageTile(
+                            message: message,
+                            isMine: message.authorId == 'me',
+                            avatar: _messageAvatar(message),
+                            onRetry: () => _retryMessage(message),
+                          ),
                       ],
                     ),
                   ),
@@ -273,6 +285,26 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
   }
 
   String? get _localWireSide => _debateDetail?.viewerSide;
+
+  Widget _messageAvatar(CommunityChatMessage message) {
+    final detail = _debateDetail;
+    DebateSpeaker? speaker;
+    if (detail != null) {
+      if (message.authorId == 'me') {
+        speaker = detail.viewerSide == 'SIDE_B'
+            ? detail.sideBSpeaker
+            : detail.sideASpeaker;
+      } else if (message.authorId == detail.sideASpeaker.id) {
+        speaker = detail.sideASpeaker;
+      } else if (message.authorId == detail.sideBSpeaker.id) {
+        speaker = detail.sideBSpeaker;
+      }
+    }
+    return _DebateAvatar(
+      name: speaker?.displayName ?? message.authorName,
+      profileImageUrl: speaker?.profileImageUrl,
+    );
+  }
 
   bool get _canActOnCurrentTurn {
     if (_localWireSide == null ||
@@ -514,6 +546,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
         _debateDetail = detail;
         _isExpired = detail.status == 'FAILED';
       });
+      _checkJudgeRetryAvailability(detail);
       _totalClockTimer?.cancel();
       _totalClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
@@ -531,6 +564,9 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
         _handleDebateEnded(null);
       } else if (detail.status == 'COMPLETED') {
         _openResult();
+      } else if (detail.status == 'DEBATE_FINALIZED' ||
+          detail.status == 'JUDGING') {
+        _startResultPolling();
       }
     } on Object {
       if (!mounted) return;
@@ -550,6 +586,16 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 
+  double get _totalRemainingProgress {
+    final expiresAt = _debateDetail?.expiresAt;
+    if (expiresAt == null) return 1;
+    final remainingSeconds = expiresAt
+        .difference(DateTime.now())
+        .inSeconds
+        .clamp(0, 1620);
+    return remainingSeconds / 1620;
+  }
+
   Future<void> _confirmServerExpiration() async {
     for (var attempt = 0; attempt < 4 && mounted; attempt++) {
       await Future<void>.delayed(const Duration(seconds: 1));
@@ -566,6 +612,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
   }
 
   void _handleDebateEnded(String? reason) {
+    if (_isForfeiting && reason == 'FORFEITED') return;
     if (!mounted || _endDialogShown) return;
     _endDialogShown = true;
     setState(() {
@@ -579,12 +626,11 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: const Text('토론 종료', style: TextStyle(color: Colors.white)),
-        content: Text(
-          reason == 'TOTAL_TIME_EXPIRED'
-              ? '전체 토론 시간 27분이 지나 토론이 종료되었습니다.'
-              : '토론이 종료되었습니다.',
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
+        content: Text(switch (reason) {
+          'TOTAL_TIME_EXPIRED' => '전체 토론 시간 27분이 지나 토론이 종료되었습니다.',
+          'FORFEITED' => '상대방의 기권으로 토론이 종료되었습니다.',
+          _ => '토론이 종료되었습니다.',
+        }, style: const TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () {
@@ -659,6 +705,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
         _serverCurrentTurn = turn;
         _isDebateFinalized = turn == null;
       });
+      _syncProgressStep();
     }
     if (turn != null) {
       _turnClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -679,12 +726,16 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
             .read(debateChatRepositoryProvider)
             .getDebateDetail(widget.debateId);
         if (!mounted) return;
-        _debateDetail = detail;
+        setState(() => _debateDetail = detail);
+        _syncProgressStep();
+        _checkJudgeRetryAvailability(detail);
         if (detail.status == 'COMPLETED') {
+          _dismissJudgeRetryDialog();
           _resultPollTimer?.cancel();
           _resultPollTimer = null;
           _openResult();
         } else if (detail.status == 'FAILED') {
+          _dismissJudgeRetryDialog();
           _resultPollTimer?.cancel();
           _resultPollTimer = null;
           _handleDebateEnded(null);
@@ -700,6 +751,88 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     context.go(
       '/communities/${widget.community.id}/debate/result?debateId=${widget.debateId}',
     );
+  }
+
+  void _checkJudgeRetryAvailability(DebateDetail detail) {
+    if (!mounted ||
+        _isRetryingJudge ||
+        _judgeRetryDialogVisible ||
+        !detail.canRetryJudgeAt(DateTime.now())) {
+      return;
+    }
+    final dismissedUntil = _judgeRetryPromptDismissedUntil;
+    if (dismissedUntil != null && DateTime.now().isBefore(dismissedUntil)) {
+      return;
+    }
+    unawaited(_showJudgeRetryDialog());
+  }
+
+  void _dismissJudgeRetryDialog() {
+    if (!_judgeRetryDialogVisible || !mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(false);
+  }
+
+  Future<void> _showJudgeRetryDialog() async {
+    if (_judgeRetryDialogVisible || !mounted) return;
+    _judgeRetryDialogVisible = true;
+    final shouldRetry = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (dialogContext) => DebateConfirmationDialog(
+        icon: Icons.refresh_rounded,
+        title: 'AI 판정이 지연되고 있습니다',
+        description: '판정 작업이 5분 이상 완료되지 않았습니다. 지금 다시 시도하시겠습니까?',
+        cancelLabel: '나중에',
+        confirmLabel: '재시도',
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onConfirm: () => Navigator.pop(dialogContext, true),
+      ),
+    );
+    _judgeRetryDialogVisible = false;
+    if (!mounted) return;
+    if (shouldRetry == true) {
+      await _retryJudge();
+    } else {
+      _judgeRetryPromptDismissedUntil = DateTime.now().add(
+        const Duration(minutes: 1),
+      );
+    }
+  }
+
+  Future<void> _retryJudge() async {
+    if (_isRetryingJudge || !mounted) return;
+    setState(() => _isRetryingJudge = true);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('AI 판정을 다시 요청하고 있습니다.')));
+    try {
+      await ref.read(debateChatRepositoryProvider).retryJudge(widget.debateId);
+      if (!mounted) return;
+      _resultPollTimer?.cancel();
+      _resultPollTimer = null;
+      _openResult();
+    } on Object catch (error) {
+      if (!mounted) return;
+      _judgeRetryPromptDismissedUntil = DateTime.now().add(
+        const Duration(seconds: 10),
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_judgeRetryErrorMessage(error))));
+    } finally {
+      if (mounted) setState(() => _isRetryingJudge = false);
+    }
+  }
+
+  String _judgeRetryErrorMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message'];
+        if (message is String && message.isNotEmpty) return message;
+      }
+    }
+    return 'AI 판정을 다시 요청하지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   void _startFinalizeTimeout(String commandId) {
@@ -782,49 +915,87 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     });
   }
 
-  void _showDebateProgress() {
+  Future<void> _showDebateProgress() async {
     final host = _hostDebater;
     final opponent = _opponentDebater;
+    final notifier = ValueNotifier<int>(_currentProgressStepIndex);
+    _progressStepNotifier?.dispose();
+    _progressStepNotifier = notifier;
 
-    showDialog<void>(
+    await showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.8),
       builder: (dialogContext) {
-        return DebateProgressSheet(
-          currentStepIndex: 1,
-          steps: [
-            DebateProgressStep(
-              label: '${opponent.name} 입론',
-              durationLabel: '1분 30초',
-            ),
-            DebateProgressStep(
-              label: '${host.name} 입론',
-              durationLabel: '1분 30초',
-            ),
-            DebateProgressStep(
-              label: '${opponent.name} 반론 및 질문',
-              durationLabel: '3분',
-            ),
-            DebateProgressStep(
-              label: '${host.name} 반론 및 질문',
-              durationLabel: '3분',
-            ),
-            DebateProgressStep(
-              label: '${opponent.name} 최종 발언',
-              durationLabel: '1분 30초',
-            ),
-            DebateProgressStep(
-              label: '${host.name} 최종 발언',
-              durationLabel: '1분 30초',
-            ),
-            const DebateProgressStep(label: '채팅 메시지 프로세싱', durationLabel: '1분'),
-            const DebateProgressStep(label: '발언 내용 분석', durationLabel: '1분'),
-            const DebateProgressStep(label: '판결', durationLabel: '1분'),
-          ],
-          onClose: () => Navigator.pop(dialogContext),
+        return ValueListenableBuilder<int>(
+          valueListenable: notifier,
+          builder: (context, currentStepIndex, child) {
+            return DebateProgressSheet(
+              currentStepIndex: currentStepIndex,
+              steps: _buildProgressSteps(host, opponent),
+              onClose: () => Navigator.pop(dialogContext),
+            );
+          },
         );
       },
     );
+    if (_progressStepNotifier == notifier) {
+      _progressStepNotifier = null;
+    }
+    notifier.dispose();
+  }
+
+  List<DebateProgressStep> _buildProgressSteps(Debater host, Debater opponent) {
+    final rounds =
+        _debateDetail?.rebuttalQuestionRounds ?? widget.community.rounds;
+    final rebuttalDurationMinutes = rounds * 3;
+    return [
+      DebateProgressStep(label: '${host.name} 입론', durationLabel: '1분 30초'),
+      DebateProgressStep(label: '${opponent.name} 입론', durationLabel: '1분 30초'),
+      DebateProgressStep(
+        label: '${host.name} 반론 및 질문',
+        durationLabel: '$rebuttalDurationMinutes분',
+      ),
+      DebateProgressStep(
+        label: '${opponent.name} 반론 및 질문',
+        durationLabel: '$rebuttalDurationMinutes분',
+      ),
+      DebateProgressStep(label: '${host.name} 최종 발언', durationLabel: '1분 30초'),
+      DebateProgressStep(
+        label: '${opponent.name} 최종 발언',
+        durationLabel: '1분 30초',
+      ),
+      const DebateProgressStep(label: '채팅 메시지 프로세싱', durationLabel: '1분'),
+      const DebateProgressStep(label: '발언 내용 분석', durationLabel: '1분'),
+      const DebateProgressStep(label: '판결', durationLabel: '1분'),
+    ];
+  }
+
+  int get _currentProgressStepIndex {
+    final turn = _serverCurrentTurn;
+    const postDebateStartIndex = 6;
+
+    if (turn == null) {
+      return switch (_debateDetail?.status) {
+        'DEBATE_FINALIZED' => postDebateStartIndex + 1,
+        'JUDGING' || 'COMPLETED' => postDebateStartIndex + 2,
+        _ => postDebateStartIndex,
+      };
+    }
+
+    final sideOffset = turn.turnSide == 'SIDE_B' ? 1 : 0;
+    return switch (turn.phase) {
+      'OPENING' => sideOffset,
+      'REBUTTAL_QUESTION' => 2 + sideOffset,
+      'CLOSING' => 4 + sideOffset,
+      _ => 0,
+    };
+  }
+
+  void _syncProgressStep() {
+    final notifier = _progressStepNotifier;
+    if (notifier != null && notifier.value != _currentProgressStepIndex) {
+      notifier.value = _currentProgressStepIndex;
+    }
   }
 
   void _showForfeitDialog() {
@@ -836,11 +1007,30 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
           onCancel: () => Navigator.pop(dialogContext),
           onForfeit: () {
             Navigator.pop(dialogContext);
-            Navigator.maybePop(context);
+            unawaited(_forfeitDebate());
           },
         );
       },
     );
+  }
+
+  Future<void> _forfeitDebate() async {
+    if (_isForfeiting) return;
+    setState(() => _isForfeiting = true);
+    try {
+      await ref
+          .read(debateChatRepositoryProvider)
+          .forfeitDebate(widget.debateId);
+      if (mounted) {
+        Navigator.maybePop(context);
+      }
+    } on Object {
+      if (!mounted) return;
+      setState(() => _isForfeiting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('기권 처리에 실패했습니다.')));
+    }
   }
 
   void _showOpponentOpeningStatement() {
@@ -855,7 +1045,8 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
             color: Colors.transparent,
             child: DebatePopupSheet(
               userName: opponent.name,
-              score: 32,
+              score: _debateDetail?.sideBSpeaker.score ?? 0,
+              profileImageUrl: _debateDetail?.sideBSpeaker.profileImageUrl,
               claim: '토마토맛 토를 누가 먹냐 우리 할머니도 안 드시겠다',
               reasons: const [
                 '토마토맛이라고 하더라도 토는 토다.',
@@ -898,7 +1089,12 @@ class _DebateRoomHeader extends StatelessWidget {
     required this.title,
     required this.hostName,
     required this.opponentName,
+    required this.hostScore,
+    required this.opponentScore,
+    required this.hostAvatarUrl,
+    required this.opponentAvatarUrl,
     required this.remainingLabel,
+    required this.remainingProgress,
     required this.onOpponentTap,
     required this.onBack,
   });
@@ -906,7 +1102,12 @@ class _DebateRoomHeader extends StatelessWidget {
   final String title;
   final String hostName;
   final String opponentName;
+  final int hostScore;
+  final int opponentScore;
+  final String? hostAvatarUrl;
+  final String? opponentAvatarUrl;
   final String remainingLabel;
+  final double remainingProgress;
   final VoidCallback onOpponentTap;
   final VoidCallback onBack;
 
@@ -972,15 +1173,18 @@ class _DebateRoomHeader extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         child: DebateUserProfileChip(
                           name: hostName,
-                          score: 16,
-                          avatarAsset: AppAssets.avatarBlue,
+                          score: hostScore,
+                          avatarUrl: hostAvatarUrl,
                         ),
                       ),
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: _TotalTimer(label: remainingLabel),
+                    child: _TotalTimer(
+                      label: remainingLabel,
+                      progress: remainingProgress,
+                    ),
                   ),
                   Expanded(
                     child: Align(
@@ -992,9 +1196,9 @@ class _DebateRoomHeader extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           child: DebateUserProfileChip(
                             name: opponentName,
-                            score: 32,
+                            score: opponentScore,
                             active: false,
-                            avatarAsset: AppAssets.avatarRed,
+                            avatarUrl: opponentAvatarUrl,
                           ),
                         ),
                       ),
@@ -1011,46 +1215,134 @@ class _DebateRoomHeader extends StatelessWidget {
 }
 
 class _TotalTimer extends StatelessWidget {
-  const _TotalTimer({required this.label});
+  const _TotalTimer({required this.label, required this.progress});
 
   final String label;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 56,
       height: 56,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.primarySoft, width: 2),
-        color: AppColors.surface.withValues(alpha: 0.34),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppColors.primarySoft,
-          fontSize: 13,
-          height: 1.4,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.28,
-        ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _ClockwiseDrainRingPainter(
+                progress: progress.clamp(0, 1),
+              ),
+            ),
+          ),
+          Container(
+            width: 50,
+            height: 50,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surface.withValues(alpha: 0.34),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.primarySoft,
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.28,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+class _ClockwiseDrainRingPainter extends CustomPainter {
+  const _ClockwiseDrainRingPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const strokeWidth = 2.0;
+    final rect = Offset.zero & size;
+    final arcRect = rect.deflate(strokeWidth / 2);
+    final trackPaint = Paint()
+      ..color = AppColors.primarySoft.withValues(alpha: 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    final progressPaint = Paint()
+      ..color = AppColors.primarySoft
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(arcRect, 0, math.pi * 2, false, trackPaint);
+    if (progress <= 0) return;
+
+    final elapsedSweep = (1 - progress) * math.pi * 2;
+    canvas.drawArc(
+      arcRect,
+      -math.pi / 2 + elapsedSweep,
+      progress * math.pi * 2,
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ClockwiseDrainRingPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
 class _DebateAvatar extends StatelessWidget {
-  const _DebateAvatar();
+  const _DebateAvatar({required this.name, required this.profileImageUrl});
+
+  final String name;
+  final String? profileImageUrl;
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = profileImageUrl?.trim();
     return ClipOval(
-      child: Image.asset(
-        AppAssets.avatarRed,
+      child: SizedBox(
         width: 36,
         height: 36,
-        fit: BoxFit.cover,
+        child: imageUrl == null || imageUrl.isEmpty
+            ? _DebateAvatarFallback(name: name)
+            : Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _DebateAvatarFallback(name: name),
+              ),
+      ),
+    );
+  }
+}
+
+class _DebateAvatarFallback extends StatelessWidget {
+  const _DebateAvatarFallback({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = name.trim();
+    return ColoredBox(
+      color: AppColors.surfaceElevated,
+      child: Center(
+        child: Text(
+          normalizedName.isEmpty ? '?' : normalizedName.characters.first,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
