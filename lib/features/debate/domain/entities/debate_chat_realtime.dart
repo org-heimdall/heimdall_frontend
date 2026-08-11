@@ -113,7 +113,10 @@ class DebateDetail {
     required this.viewerSide,
     required this.startedAt,
     required this.expiresAt,
+    required this.judgingStartedAt,
   });
+
+  static const judgeRetryStaleDuration = Duration(minutes: 5);
 
   final String id;
   final String communityId;
@@ -124,6 +127,14 @@ class DebateDetail {
   final String? viewerSide;
   final DateTime? startedAt;
   final DateTime? expiresAt;
+  final DateTime? judgingStartedAt;
+
+  bool canRetryJudgeAt(DateTime now) {
+    final startedAt = judgingStartedAt;
+    return status == 'JUDGING' &&
+        startedAt != null &&
+        !now.isBefore(startedAt.add(judgeRetryStaleDuration));
+  }
 }
 
 enum DebateChatRealtimeEventType {

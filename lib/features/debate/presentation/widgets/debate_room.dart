@@ -65,6 +65,9 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
   bool _isExpired = false;
   bool _endDialogShown = false;
   bool _isForfeiting = false;
+  bool _isRetryingJudge = false;
+  bool _judgeRetryDialogVisible = false;
+  DateTime? _judgeRetryPromptDismissedUntil;
   ValueNotifier<int>? _progressStepNotifier;
   late final ChatMessageTimeline _timeline;
 
@@ -543,6 +546,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
         _debateDetail = detail;
         _isExpired = detail.status == 'FAILED';
       });
+      _checkJudgeRetryAvailability(detail);
       _totalClockTimer?.cancel();
       _totalClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
@@ -560,6 +564,9 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
         _handleDebateEnded(null);
       } else if (detail.status == 'COMPLETED') {
         _openResult();
+      } else if (detail.status == 'DEBATE_FINALIZED' ||
+          detail.status == 'JUDGING') {
+        _startResultPolling();
       }
     } on Object {
       if (!mounted) return;
@@ -721,11 +728,14 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
         if (!mounted) return;
         setState(() => _debateDetail = detail);
         _syncProgressStep();
+        _checkJudgeRetryAvailability(detail);
         if (detail.status == 'COMPLETED') {
+          _dismissJudgeRetryDialog();
           _resultPollTimer?.cancel();
           _resultPollTimer = null;
           _openResult();
         } else if (detail.status == 'FAILED') {
+          _dismissJudgeRetryDialog();
           _resultPollTimer?.cancel();
           _resultPollTimer = null;
           _handleDebateEnded(null);
@@ -741,6 +751,88 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     context.go(
       '/communities/${widget.community.id}/debate/result?debateId=${widget.debateId}',
     );
+  }
+
+  void _checkJudgeRetryAvailability(DebateDetail detail) {
+    if (!mounted ||
+        _isRetryingJudge ||
+        _judgeRetryDialogVisible ||
+        !detail.canRetryJudgeAt(DateTime.now())) {
+      return;
+    }
+    final dismissedUntil = _judgeRetryPromptDismissedUntil;
+    if (dismissedUntil != null && DateTime.now().isBefore(dismissedUntil)) {
+      return;
+    }
+    unawaited(_showJudgeRetryDialog());
+  }
+
+  void _dismissJudgeRetryDialog() {
+    if (!_judgeRetryDialogVisible || !mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(false);
+  }
+
+  Future<void> _showJudgeRetryDialog() async {
+    if (_judgeRetryDialogVisible || !mounted) return;
+    _judgeRetryDialogVisible = true;
+    final shouldRetry = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (dialogContext) => DebateConfirmationDialog(
+        icon: Icons.refresh_rounded,
+        title: 'AI 판정이 지연되고 있습니다',
+        description: '판정 작업이 5분 이상 완료되지 않았습니다. 지금 다시 시도하시겠습니까?',
+        cancelLabel: '나중에',
+        confirmLabel: '재시도',
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onConfirm: () => Navigator.pop(dialogContext, true),
+      ),
+    );
+    _judgeRetryDialogVisible = false;
+    if (!mounted) return;
+    if (shouldRetry == true) {
+      await _retryJudge();
+    } else {
+      _judgeRetryPromptDismissedUntil = DateTime.now().add(
+        const Duration(minutes: 1),
+      );
+    }
+  }
+
+  Future<void> _retryJudge() async {
+    if (_isRetryingJudge || !mounted) return;
+    setState(() => _isRetryingJudge = true);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('AI 판정을 다시 요청하고 있습니다.')));
+    try {
+      await ref.read(debateChatRepositoryProvider).retryJudge(widget.debateId);
+      if (!mounted) return;
+      _resultPollTimer?.cancel();
+      _resultPollTimer = null;
+      _openResult();
+    } on Object catch (error) {
+      if (!mounted) return;
+      _judgeRetryPromptDismissedUntil = DateTime.now().add(
+        const Duration(seconds: 10),
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_judgeRetryErrorMessage(error))));
+    } finally {
+      if (mounted) setState(() => _isRetryingJudge = false);
+    }
+  }
+
+  String _judgeRetryErrorMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final message = data['message'];
+        if (message is String && message.isNotEmpty) return message;
+      }
+    }
+    return 'AI 판정을 다시 요청하지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   void _startFinalizeTimeout(String commandId) {
