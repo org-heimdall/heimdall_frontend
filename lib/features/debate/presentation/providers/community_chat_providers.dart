@@ -42,18 +42,15 @@ final communityChatRealtimeRepositoryProvider =
       return MockCommunityChatRealtimeRepository(client);
     });
 
-final communityChatEventsProvider =
-    StreamProvider.family<CommunityChatEvent, String>((ref, communityId) {
+final communityChatEventsProvider = StreamProvider.autoDispose
+    .family<CommunityChatEvent, String>((ref, communityId) {
       // 커뮤니티 채팅방별 실시간 이벤트 스트림을 UI가 구독한다.
       final repository = ref.watch(communityChatRealtimeRepositoryProvider);
       return repository.watchEvents(communityId);
     });
 
-final communityChatHistoryProvider =
-    FutureProvider.family<List<CommunityChatMessage>, String>((
-      ref,
-      communityId,
-    ) async {
+final communityChatHistoryProvider = FutureProvider.autoDispose
+    .family<List<CommunityChatMessage>, String>((ref, communityId) async {
       final response = await ref
           .watch(dioProvider)
           .get<List<dynamic>>('/communities/$communityId/messages');
@@ -63,11 +60,8 @@ final communityChatHistoryProvider =
           .toList();
     });
 
-final communityOpinionHistoryProvider =
-    FutureProvider.family<List<CommunityChatMessage>, String>((
-      ref,
-      communityId,
-    ) async {
+final communityOpinionHistoryProvider = FutureProvider.autoDispose
+    .family<List<CommunityChatMessage>, String>((ref, communityId) async {
       final response = await ref
           .watch(dioProvider)
           .get<List<dynamic>>('/communities/$communityId/opinions');

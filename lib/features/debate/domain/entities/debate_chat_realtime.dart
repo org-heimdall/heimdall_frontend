@@ -92,11 +92,13 @@ class DebateSpeaker {
   const DebateSpeaker({
     required this.id,
     required this.displayName,
+    required this.score,
     this.profileImageUrl,
   });
 
   final String id;
   final String displayName;
+  final int score;
   final String? profileImageUrl;
 }
 
@@ -105,6 +107,7 @@ class DebateDetail {
     required this.id,
     required this.communityId,
     required this.status,
+    required this.rebuttalQuestionRounds,
     required this.sideASpeaker,
     required this.sideBSpeaker,
     required this.viewerSide,
@@ -115,6 +118,7 @@ class DebateDetail {
   final String id;
   final String communityId;
   final String status;
+  final int rebuttalQuestionRounds;
   final DebateSpeaker sideASpeaker;
   final DebateSpeaker sideBSpeaker;
   final String? viewerSide;

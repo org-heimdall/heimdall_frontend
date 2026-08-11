@@ -4,9 +4,14 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/community.dart';
 
 class DebateStartDialog extends StatelessWidget {
-  const DebateStartDialog({required this.community, super.key});
+  const DebateStartDialog({
+    required this.community,
+    this.showActionButtons = true,
+    super.key,
+  });
 
   final Community community;
+  final bool showActionButtons;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +32,7 @@ class DebateStartDialog extends StatelessWidget {
             children: [
               Column(
                 children: [
-                  const _DialogHeader(),
+                  _DialogHeader(showActionButtons: showActionButtons),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
@@ -61,17 +66,18 @@ class DebateStartDialog extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _DialogActions(
-                    onCancel: () => Navigator.pop(context, false),
-                    onConfirm: () => Navigator.pop(context, true),
-                  ),
+                  if (showActionButtons)
+                    _DialogActions(
+                      onCancel: () => Navigator.pop(context, false),
+                      onConfirm: () => Navigator.pop(context, true),
+                    ),
                 ],
               ),
-              const Positioned(
+              Positioned(
                 left: 0,
                 right: 0,
-                bottom: 88,
-                child: IgnorePointer(
+                bottom: showActionButtons ? 88 : 0,
+                child: const IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -97,15 +103,17 @@ class DebateStartDialog extends StatelessWidget {
 }
 
 class _DialogHeader extends StatelessWidget {
-  const _DialogHeader();
+  const _DialogHeader({required this.showActionButtons});
+
+  final bool showActionButtons;
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
       child: Column(
         children: [
-          Text(
+          const Text(
             '토론 정보 확인',
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -116,9 +124,11 @@ class _DialogHeader extends StatelessWidget {
               letterSpacing: -0.5,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
-            '아래 내용을 확인한 뒤 토론을 시작해주세요.',
+            showActionButtons
+                ? '아래 내용을 확인한 뒤 토론을 시작해주세요.'
+                : '커뮤니티에 설정된 토론 정보입니다.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textMuted,

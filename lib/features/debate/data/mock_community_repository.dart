@@ -294,6 +294,14 @@ class MockCommunityRepository {
     await dioProvider().post<void>('/communities/$communityId/members/me');
   }
 
+  Future<void> leaveCommunity(String communityId) async {
+    final dioProvider = _dioProvider;
+    if (dioProvider == null) {
+      return;
+    }
+    await dioProvider().delete<void>('/communities/$communityId/members/me');
+  }
+
   Future<List<CommunityMemberSummary>> fetchCommunityMembers(
     String communityId,
   ) async {

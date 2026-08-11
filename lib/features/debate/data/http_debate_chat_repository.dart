@@ -28,6 +28,11 @@ class HttpDebateChatRepository implements DebateChatRepository {
   }
 
   @override
+  Future<void> forfeitDebate(String debateId) async {
+    await _dio.post<void>('/debates/$debateId/forfeit');
+  }
+
+  @override
   Future<DebateResult> getDebateResult(String debateId) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/debates/$debateId/result',
@@ -72,6 +77,7 @@ class HttpDebateChatRepository implements DebateChatRepository {
       id: _requiredString(json, 'id'),
       communityId: _requiredString(json, 'communityId'),
       status: _requiredString(json, 'status'),
+      rebuttalQuestionRounds: _requiredInt(json, 'rebuttalQuestionRounds'),
       sideASpeaker: _speaker(json['sideASpeaker'], 'sideASpeaker'),
       sideBSpeaker: _speaker(json['sideBSpeaker'], 'sideBSpeaker'),
       viewerSide: json['viewerSide'] as String?,
@@ -220,6 +226,7 @@ class HttpDebateChatRepository implements DebateChatRepository {
     return DebateSpeaker(
       id: _requiredString(raw, 'id'),
       displayName: _requiredString(raw, 'displayName'),
+      score: _requiredInt(raw, 'score'),
       profileImageUrl: raw['profileImageUrl'] as String?,
     );
   }

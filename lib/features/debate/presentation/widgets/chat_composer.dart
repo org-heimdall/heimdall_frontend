@@ -104,6 +104,8 @@ class _ChatComposerState extends State<ChatComposer> {
                           height: 1.45,
                         ),
                         decoration: InputDecoration(
+                          filled: false,
+                          fillColor: Colors.transparent,
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,

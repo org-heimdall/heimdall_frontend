@@ -80,31 +80,43 @@ class DebateProgressSheet extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               Expanded(
-                child: Stack(
-                  children: [
-                    Positioned(
-                      left: 0,
-                      top: _dotTop,
-                      child: _ProgressRail(
-                        height: railHeight,
-                        completedHeight: completedRailHeight,
-                      ),
-                    ),
-                    Column(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    height: steps.isEmpty
+                        ? 0
+                        : steps.length * _rowHeight +
+                              (steps.length - 1) * _rowGap,
+                    child: Stack(
                       children: [
-                        for (var index = 0; index < steps.length; index++) ...[
-                          _ProgressStepRow(
-                            step: steps[index],
-                            state: _stateFor(index),
-                            height: _rowHeight,
-                            dotSize: _dotSize,
+                        Positioned(
+                          left: 0,
+                          top: _dotTop,
+                          child: _ProgressRail(
+                            height: railHeight,
+                            completedHeight: completedRailHeight,
                           ),
-                          if (index != steps.length - 1)
-                            const SizedBox(height: _rowGap),
-                        ],
+                        ),
+                        Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < steps.length;
+                              index++
+                            ) ...[
+                              _ProgressStepRow(
+                                step: steps[index],
+                                state: _stateFor(index),
+                                height: _rowHeight,
+                                dotSize: _dotSize,
+                              ),
+                              if (index != steps.length - 1)
+                                const SizedBox(height: _rowGap),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],

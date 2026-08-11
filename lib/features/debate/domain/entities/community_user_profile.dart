@@ -5,6 +5,7 @@ class CommunityUserProfile {
     required this.score,
     required this.claim,
     required this.reasons,
+    this.profileImageUrl,
   });
 
   final String userId;
@@ -12,4 +13,5 @@ class CommunityUserProfile {
   final int score;
   final String claim;
   final List<String> reasons;
+  final String? profileImageUrl;
 }

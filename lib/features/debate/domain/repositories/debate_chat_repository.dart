@@ -6,6 +6,8 @@ abstract interface class DebateChatRepository {
 
   Future<DebateDetail?> getActiveCommunityDebate(String communityId);
 
+  Future<void> forfeitDebate(String debateId);
+
   Future<DebateResult> getDebateResult(String debateId);
 
   Future<DebateTurnCommandContext> getCurrentTurnContext(String debateId);
