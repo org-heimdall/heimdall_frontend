@@ -2,16 +2,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/app_environment.dart';
 import '../../../../core/network/dio_provider.dart';
-import '../../../auth/data/auth_token_store.dart';
-import '../../data/debate_chat_event_mapper.dart';
-import '../../data/debate_chat_realtime_client.dart';
-import '../../data/http_debate_chat_repository.dart';
+import '../../../auth/data/stores/auth_token_store.dart';
+import '../../data/mappers/debate_response_mapper.dart';
+import '../../data/remote/debate_remote_data_source.dart';
+import '../../data/mappers/debate_chat_event_mapper.dart';
+import '../../data/realtime/debate_chat_realtime_client.dart';
+import '../../data/repositories/debate_chat_repository_impl.dart';
 import '../../domain/entities/debate_chat_realtime.dart';
 import '../../domain/entities/debate_result.dart';
 import '../../domain/repositories/debate_chat_repository.dart';
 
+final debateRemoteDataSourceProvider = Provider<DebateRemoteDataSource>((ref) {
+  return DebateRemoteDataSource(ref.watch(dioProvider));
+});
+
+final debateResponseMapperProvider = Provider<DebateResponseMapper>((ref) {
+  return const DebateResponseMapper();
+});
+
 final debateChatRepositoryProvider = Provider<DebateChatRepository>((ref) {
-  return HttpDebateChatRepository(ref.watch(dioProvider));
+  return DebateChatRepositoryImpl(
+    ref.watch(debateRemoteDataSourceProvider),
+    ref.watch(debateResponseMapperProvider),
+  );
 });
 
 final finalizedDebateTurnsProvider =
@@ -27,6 +40,13 @@ final debateDetailProvider = FutureProvider.family<DebateDetail, String>((
 ) {
   return ref.watch(debateChatRepositoryProvider).getDebateDetail(debateId);
 });
+
+final activeCommunityDebateProvider = FutureProvider.autoDispose
+    .family<DebateDetail?, String>((ref, communityId) {
+      return ref
+          .watch(debateChatRepositoryProvider)
+          .getActiveCommunityDebate(communityId);
+    });
 
 final debateResultProvider = FutureProvider.family<DebateResult, String>((
   ref,

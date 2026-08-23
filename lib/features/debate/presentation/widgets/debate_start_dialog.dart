@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../domain/entities/community.dart';
+import '../../../community/domain/entities/community.dart';
 
 class DebateStartDialog extends StatelessWidget {
   const DebateStartDialog({

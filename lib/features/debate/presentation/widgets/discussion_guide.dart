@@ -3,14 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class DiscussionGuide extends StatelessWidget {
-  const DiscussionGuide({
-    this.lines = const [
-      '토론자가 결정되었습니다.',
-      '10초 뒤, 비프로스트의 문이 열립니다.',
-      '기조 발언을 탐색하거나 상대방과 인사를 나누세요.',
-    ],
-    super.key,
-  });
+  const DiscussionGuide({required this.lines, super.key});
 
   final List<String> lines;
 

@@ -1,4 +1,4 @@
-import 'community.dart';
+import '../../../../shared/domain/entities/debate_side.dart';
 
 enum DebateWinner {
   pro('찬성'),
@@ -21,11 +21,58 @@ class DebateScore {
   final String summary;
 }
 
-class FactCheckResult {
-  const FactCheckResult({required this.claim, required this.verdict});
+enum FactCheckStatus {
+  supported('SUPPORTED', '근거 있음'),
+  contradicted('CONTRADICTED', '사실과 다름'),
+  partiallySupported('PARTIALLY_SUPPORTED', '일부 근거 있음'),
+  insufficientEvidence('INSUFFICIENT_EVIDENCE', '근거 부족'),
+  notVerifiable('NOT_VERIFIABLE', '검증 불가'),
+  outdatedOrTimeSensitive('OUTDATED_OR_TIME_SENSITIVE', '시점 확인 필요'),
+  unknown('UNKNOWN', '확인 필요');
 
+  const FactCheckStatus(this.wireValue, this.label);
+
+  final String wireValue;
+  final String label;
+
+  static FactCheckStatus fromWireValue(String value) {
+    return FactCheckStatus.values.firstWhere(
+      (status) => status.wireValue == value,
+      orElse: () => FactCheckStatus.unknown,
+    );
+  }
+}
+
+class FactCheckSource {
+  const FactCheckSource({
+    required this.title,
+    required this.publisher,
+    required this.url,
+  });
+
+  final String title;
+  final String publisher;
+  final String url;
+}
+
+class FactCheckResult {
+  const FactCheckResult({
+    required this.id,
+    required this.componentId,
+    required this.claim,
+    required this.status,
+    required this.reason,
+    required this.sources,
+    required this.checkedAt,
+  });
+
+  final String id;
+  final String componentId;
   final String claim;
-  final String verdict;
+  final FactCheckStatus status;
+  final String reason;
+  final List<FactCheckSource> sources;
+  final DateTime checkedAt;
 }
 
 class DebateResult {

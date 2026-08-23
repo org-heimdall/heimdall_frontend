@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
-import 'heimdall_controls.dart';
+import '../../../../shared/presentation/widgets/heimdall_controls.dart';
 
 class DebatePopupSheet extends StatelessWidget {
   const DebatePopupSheet({

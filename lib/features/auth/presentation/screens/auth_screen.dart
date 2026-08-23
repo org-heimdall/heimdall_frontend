@@ -8,11 +8,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../providers/auth_providers.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen.login({super.key}) : isSignUp = false;
+  const AuthScreen.login({this.redirectLocation, super.key}) : isSignUp = false;
 
-  const AuthScreen.signUp({super.key}) : isSignUp = true;
+  const AuthScreen.signUp({this.redirectLocation, super.key}) : isSignUp = true;
 
   final bool isSignUp;
+  final String? redirectLocation;
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -226,7 +227,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       onPressed: isLoading
                           ? null
                           : () => context.go(
-                              widget.isSignUp ? '/login' : '/signup',
+                              _authRoute(
+                                widget.isSignUp ? '/login' : '/signup',
+                              ),
                             ),
                       child: Text(
                         widget.isSignUp ? '이미 계정이 있나요? 로그인' : '처음이신가요? 회원가입',
@@ -240,6 +243,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ),
       ),
     );
+  }
+
+  String _authRoute(String path) {
+    return Uri(
+      path: path,
+      queryParameters: widget.redirectLocation == null
+          ? null
+          : {'redirect': widget.redirectLocation!},
+    ).toString();
   }
 
   Future<void> _submit() async {

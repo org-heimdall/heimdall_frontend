@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_environment.dart';
-import '../../features/auth/data/auth_token_store.dart';
-import '../../features/auth/data/member_session_store.dart';
+import '../../features/auth/data/stores/auth_token_store.dart';
+import '../../features/auth/data/stores/member_session_store.dart';
 import 'jwt_auth_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {

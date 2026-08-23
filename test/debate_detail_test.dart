@@ -53,4 +53,33 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'current turn reports preparation seconds until its server start time',
+    () {
+      final now = DateTime.utc(2026, 8, 23, 3);
+      final turn = DebateChatCurrentTurn(
+        phase: 'OPENING',
+        round: 1,
+        turnSide: 'SIDE_A',
+        startedAt: now.add(const Duration(seconds: 10)),
+        maxDurationSeconds: 90,
+        maxTotalCharacters: 1000,
+      );
+
+      expect(turn.preparationSecondsRemainingAt(now), 10);
+      expect(
+        turn.preparationSecondsRemainingAt(
+          now.add(const Duration(milliseconds: 9500)),
+        ),
+        1,
+      );
+      expect(
+        turn.preparationSecondsRemainingAt(
+          now.add(const Duration(seconds: 10)),
+        ),
+        0,
+      );
+    },
+  );
 }
