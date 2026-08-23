@@ -2,9 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_provider.dart';
-import '../../data/auth_repository.dart';
-import '../../data/auth_token_store.dart';
-import '../../data/member_session_store.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/stores/auth_token_store.dart';
+import '../../data/stores/member_session_store.dart';
 import '../../domain/auth_member.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {

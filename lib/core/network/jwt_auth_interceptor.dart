@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
-import '../../features/auth/data/auth_token_store.dart';
-import '../../features/auth/data/member_session_store.dart';
+import '../../features/auth/data/stores/auth_token_store.dart';
+import '../../features/auth/data/stores/member_session_store.dart';
 import '../../features/auth/domain/auth_member.dart';
 
 class JwtAuthInterceptor extends Interceptor {

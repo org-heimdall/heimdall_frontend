@@ -28,6 +28,12 @@ class DebateChatCurrentTurn {
   final DateTime startedAt;
   final int maxDurationSeconds;
   final int maxTotalCharacters;
+
+  int preparationSecondsRemainingAt(DateTime now) {
+    final remainingMilliseconds = startedAt.difference(now).inMilliseconds;
+    if (remainingMilliseconds <= 0) return 0;
+    return (remainingMilliseconds + 999) ~/ 1000;
+  }
 }
 
 class DebateChatDraftMessage {

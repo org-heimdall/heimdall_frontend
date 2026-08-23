@@ -1,4 +1,4 @@
-import 'community.dart';
+import '../../../../shared/domain/entities/debate_side.dart';
 
 enum DebateStage {
   opening('입론', 90),
