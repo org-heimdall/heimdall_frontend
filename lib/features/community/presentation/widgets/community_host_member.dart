@@ -101,6 +101,13 @@ class _CommunityMemberState extends State<CommunityMember> {
     final members = _sortedMembers;
     return Material(
       color: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(32),
+          bottomLeft: Radius.circular(32),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         left: false,
         bottom: false,
@@ -143,139 +150,151 @@ class _CommunityMemberState extends State<CommunityMember> {
               ),
             ),
             const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '토론 의사',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
-                      height: 1.35,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _DebateIntentButton(
-                          label: '준비할래요',
-                          iconAsset: AppAssets.debatePreparingIcon,
-                          selected: !_wantsToDebate,
-                          onTap: () => _setDebateIntent(false),
-                        ),
-                      ),
-                      const SizedBox(width: 28),
-                      Expanded(
-                        child: _DebateIntentButton(
-                          label: '토론할래요',
-                          icon: Icons.search_rounded,
-                          selected: _wantsToDebate,
-                          onTap: () => _setDebateIntent(true),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) => CustomScrollView(
-                  clipBehavior: Clip.hardEdge,
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: IntrinsicHeight(
-                          child: Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text.rich(
-                                      TextSpan(
-                                        text: '현재 참여 중  ',
+              child: ClipRect(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => CustomScrollView(
+                    clipBehavior: Clip.hardEdge,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: IntrinsicHeight(
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        '토론 의사',
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 13,
+                                          height: 1.35,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
                                         children: [
-                                          TextSpan(
-                                            text: '${members.length}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
+                                          Expanded(
+                                            child: _DebateIntentButton(
+                                              label: '준비할래요',
+                                              iconAsset:
+                                                  AppAssets.debatePreparingIcon,
+                                              selected: !_wantsToDebate,
+                                              onTap: () =>
+                                                  _setDebateIntent(false),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 28),
+                                          Expanded(
+                                            child: _DebateIntentButton(
+                                              label: '토론할래요',
+                                              icon: Icons.search_rounded,
+                                              selected: _wantsToDebate,
+                                              onTap: () =>
+                                                  _setDebateIntent(true),
                                             ),
                                           ),
                                         ],
                                       ),
-                                      style: const TextStyle(
-                                        color: AppColors.textMuted,
-                                        fontSize: 13,
-                                        height: 1.35,
-                                        letterSpacing: -0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    DecoratedBox(
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.background,
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(10),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text.rich(
+                                        TextSpan(
+                                          text: '현재 참여 중  ',
+                                          children: [
+                                            TextSpan(
+                                              text: '${members.length}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        style: const TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 13,
+                                          height: 1.35,
+                                          letterSpacing: -0.5,
                                         ),
                                       ),
-                                      child: Column(
-                                        children: [
-                                          for (
-                                            var index = 0;
-                                            index < members.length;
-                                            index++
-                                          )
-                                            _MemberTile(
-                                              memberId: members[index].id,
-                                              name: members[index].displayName,
-                                              isHost: members[index].isHost,
-                                              wantsToDebate:
-                                                  members[index].id ==
-                                                      widget.currentMemberId
-                                                  ? _wantsToDebate
-                                                  : members[index]
-                                                        .wantsToDebate,
-                                              showDivider:
-                                                  index < members.length - 1,
-                                              onTap: widget.onMemberProfileTap,
-                                            ),
-                                        ],
+                                      const SizedBox(height: 10),
+                                      DecoratedBox(
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.background,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(10),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            for (
+                                              var index = 0;
+                                              index < members.length;
+                                              index++
+                                            )
+                                              _MemberTile(
+                                                memberId: members[index].id,
+                                                name:
+                                                    members[index].displayName,
+                                                profileImageUrl: members[index]
+                                                    .profileImageUrl,
+                                                isHost: members[index].isHost,
+                                                wantsToDebate:
+                                                    members[index].id ==
+                                                        widget.currentMemberId
+                                                    ? _wantsToDebate
+                                                    : members[index]
+                                                          .wantsToDebate,
+                                                showDivider:
+                                                    index < members.length - 1,
+                                                onTap:
+                                                    widget.onMemberProfileTap,
+                                              ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const Spacer(),
-                              widget.showHostActions
-                                  ? _HostCommunityActions(
-                                      onDeleteCommunity:
-                                          widget.onDeleteCommunity,
-                                    )
-                                  : _MemberCommunityActions(
-                                      onLeaveCommunity: widget.onLeaveCommunity,
-                                      onReport: widget.onReport,
-                                    ),
-                            ],
+                                const SizedBox(height: 16),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
+            widget.showHostActions
+                ? _HostCommunityActions(
+                    onDeleteCommunity: widget.onDeleteCommunity,
+                  )
+                : _MemberCommunityActions(
+                    onLeaveCommunity: widget.onLeaveCommunity,
+                    onReport: widget.onReport,
+                  ),
           ],
         ),
       ),
@@ -412,7 +431,7 @@ class _MemberCommunityActionButton extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: SizedBox(
-        height: 48,
+        height: 56,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -453,7 +472,7 @@ class _HostCommunityActions extends StatelessWidget {
         onTap: onDeleteCommunity,
         iconSize: 30,
         fontSize: 18,
-        contentSpacing: 20,
+        contentSpacing: 24,
       ),
     );
   }
@@ -561,45 +580,48 @@ class _DebateIntentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Ink(
-        height: 83,
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFA4A7FF) : AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x1A000000),
-              offset: Offset(0, 2),
-              blurRadius: 2.5,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (iconAsset case final asset?)
-              SizedBox(
-                width: 36,
-                height: 36,
-                child: Center(
-                  child: SvgPicture.asset(asset, width: 30, height: 27),
-                ),
-              )
-            else
-              Icon(icon, size: 36, color: AppColors.primary),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-                height: 1.35,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 83,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFFA4A7FF) : AppColors.background,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A000000),
+                offset: Offset(0, 2),
+                blurRadius: 2.5,
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (iconAsset case final asset?)
+                SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Center(
+                    child: SvgPicture.asset(asset, width: 30, height: 27),
+                  ),
+                )
+              else
+                Icon(icon, size: 36, color: AppColors.primary),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -610,6 +632,7 @@ class _MemberTile extends StatelessWidget {
   const _MemberTile({
     required this.memberId,
     required this.name,
+    required this.profileImageUrl,
     required this.isHost,
     required this.wantsToDebate,
     required this.showDivider,
@@ -618,6 +641,7 @@ class _MemberTile extends StatelessWidget {
 
   final String memberId;
   final String name;
+  final String? profileImageUrl;
   final bool isHost;
   final bool wantsToDebate;
   final bool showDivider;
@@ -635,12 +659,10 @@ class _MemberTile extends StatelessWidget {
               height: 62,
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: const Color(0xFFE2E3E5),
-                    backgroundImage: isHost
-                        ? const AssetImage(AppAssets.communityHostAvatar)
-                        : null,
+                  _MemberListAvatar(
+                    name: name,
+                    imageUrl: profileImageUrl,
+                    isHost: isHost,
                   ),
                   const SizedBox(width: 20),
                   Expanded(
@@ -685,6 +707,43 @@ class _MemberTile extends StatelessWidget {
               const Divider(height: 1, thickness: 1, color: AppColors.divider),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MemberListAvatar extends StatelessWidget {
+  const _MemberListAvatar({
+    required this.name,
+    required this.imageUrl,
+    required this.isHost,
+  });
+
+  final String name;
+  final String? imageUrl;
+  final bool isHost;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedUrl = imageUrl?.trim();
+    return Container(
+      width: 36,
+      height: 36,
+      padding: EdgeInsets.all(isHost ? 2 : 0),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: isHost
+            ? Border.all(color: AppColors.primarySoft, width: 1.5)
+            : null,
+      ),
+      child: ClipOval(
+        child: normalizedUrl == null || normalizedUrl.isEmpty
+            ? _AvatarFallback(userName: name)
+            : Image.network(
+                normalizedUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _AvatarFallback(userName: name),
+              ),
       ),
     );
   }

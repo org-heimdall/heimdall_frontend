@@ -100,12 +100,16 @@ class DebateSpeaker {
     required this.displayName,
     required this.score,
     this.profileImageUrl,
+    this.claim = '',
+    this.reasons = const [],
   });
 
   final String id;
   final String displayName;
   final int score;
   final String? profileImageUrl;
+  final String claim;
+  final List<String> reasons;
 }
 
 class DebateDetail {

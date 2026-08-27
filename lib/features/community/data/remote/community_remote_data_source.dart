@@ -38,6 +38,25 @@ class CommunityRemoteDataSource {
     return _requiredMap(response.data, '토론 생성');
   }
 
+  Future<Map<String, dynamic>> acceptDebateInvitation({
+    required String communityId,
+    required String invitationId,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/communities/$communityId/debates/$invitationId/accept',
+    );
+    return _requiredMap(response.data, '토론 초대 수락');
+  }
+
+  Future<void> rejectDebateInvitation({
+    required String communityId,
+    required String invitationId,
+  }) async {
+    await _dio.post<void>(
+      '/communities/$communityId/debates/$invitationId/reject',
+    );
+  }
+
   Future<void> joinCommunity(String communityId) async {
     await _dio.post<void>('/communities/$communityId/members/me');
   }

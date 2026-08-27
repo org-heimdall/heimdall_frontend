@@ -4,7 +4,8 @@ import '../../../core/theme/app_colors.dart';
 
 class AppConfirmationDialog extends StatelessWidget {
   const AppConfirmationDialog({
-    required this.icon,
+    this.icon,
+    this.header,
     required this.title,
     required this.description,
     required this.cancelLabel,
@@ -12,9 +13,10 @@ class AppConfirmationDialog extends StatelessWidget {
     required this.onCancel,
     required this.onConfirm,
     super.key,
-  });
+  }) : assert(icon != null || header != null);
 
-  final IconData icon;
+  final IconData? icon;
+  final Widget? header;
   final String title;
   final String description;
   final String cancelLabel;
@@ -38,15 +40,16 @@ class AppConfirmationDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: AppColors.primary, size: 32),
-              ),
+              header ??
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primarySoft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon!, color: AppColors.primary, size: 32),
+                  ),
               const SizedBox(height: 20),
               Text(
                 title,

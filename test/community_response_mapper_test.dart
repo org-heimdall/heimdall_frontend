@@ -30,6 +30,23 @@ void main() {
     expect(community.debateDurationMinutes, 16);
   });
 
+  test('maps debate start notifications to a system message', () {
+    final message = const CommunityChatResponseMapper().mapMessage({
+      'id': 'start-message',
+      'communityId': 'community-1',
+      'clientMessageId': 'debate_started:debate-1',
+      'authorId': 'system',
+      'authorName': '헤임달',
+      'text': '윤호님과 현우님이 토론을 시작했습니다.',
+      'messageType': 'DEBATE_STARTED',
+      'debateId': 'debate-1',
+      'createdAt': '2026-08-24T08:00:00.000Z',
+    });
+
+    expect(message, isA<CommunityDebateStartedMessage>());
+    expect(message.text, '윤호님과 현우님이 토론을 시작했습니다.');
+  });
+
   test('keeps forfeit notifications out of the shared message model', () {
     final message = const CommunityChatResponseMapper().mapMessage({
       'id': 'forfeit-message',
@@ -44,5 +61,21 @@ void main() {
     });
 
     expect(message, isA<CommunityDebateForfeitMessage>());
+  });
+
+  test('maps debate timeout notifications to a system message', () {
+    final message = const CommunityChatResponseMapper().mapMessage({
+      'id': 'timeout-message',
+      'communityId': 'community-1',
+      'clientMessageId': 'timeout-client',
+      'authorId': 'system',
+      'authorName': '헤임달',
+      'text': '토론 제한 시간이 초과되어 토론이 종료되었습니다.',
+      'messageType': 'DEBATE_TIMEOUT',
+      'debateId': 'debate-1',
+      'createdAt': '2026-08-24T08:00:00.000Z',
+    });
+
+    expect(message, isA<CommunityDebateTimeoutMessage>());
   });
 }

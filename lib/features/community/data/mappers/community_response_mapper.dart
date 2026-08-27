@@ -1,4 +1,5 @@
 import '../../domain/entities/community.dart';
+import '../../domain/entities/community_chat.dart';
 
 class CommunityResponseMapper {
   const CommunityResponseMapper();
@@ -68,6 +69,17 @@ class CommunityResponseMapper {
       throw const FormatException('생성된 토론 ID가 없습니다.');
     }
     return debateId;
+  }
+
+  CommunityDebateInvitation mapDebateInvitation(Map<String, dynamic> json) {
+    return CommunityDebateInvitation(
+      id: json['id'] as String,
+      communityId: json['communityId'] as String,
+      hostMemberId: json['hostMemberId'] as String,
+      hostName: json['hostName'] as String,
+      opponentMemberId: json['opponentMemberId'] as String,
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
+    );
   }
 
   CommunityCategory _communityCategory(Object? value) {

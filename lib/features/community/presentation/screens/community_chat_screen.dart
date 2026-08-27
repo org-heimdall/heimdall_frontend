@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -50,6 +51,8 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   bool _navigatingToDebate = false;
   bool _didScrollToInitialHistory = false;
   bool _didCheckInitialOpinion = false;
+  String? _visibleDebateInvitationId;
+  String? _visibleOutgoingDebateInvitationId;
 
   @override
   void initState() {
@@ -100,6 +103,16 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     final opinionHistoryAsync = ref.watch(
       communityOpinionHistoryProvider(widget.community.id),
     );
+    final communityMembers = ref
+        .watch(communityMembersProvider(widget.community.id))
+        .asData
+        ?.value;
+    final profileImageByMemberId = <String, String?>{
+      for (final member in communityMembers ?? const <CommunityMemberSummary>[])
+        member.id: member.profileImageUrl,
+      if (currentMember != null)
+        currentMember.id: currentMember.profileImageUrl,
+    };
     final messageHistory = messageHistoryAsync.asData?.value;
     final opinionHistory = opinionHistoryAsync.asData?.value;
     final visibleMessages = _orderedMessagesWithHistory(
@@ -138,7 +151,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       },
     );
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -153,55 +166,68 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               onMore: () => _showCommunityMembers(),
             ),
             Expanded(
-              child: ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                children: [
-                  for (final message in visibleMessages)
-                    if (message is CommunityOpinionMessage)
-                      _DiscussionGuide(
-                        message: message,
-                        onStatementTap: () =>
-                            _showUserProfileByUserId(message.authorId),
-                      )
-                    else if (message is CommunityDebateResultMessage)
-                      _CommunitySystemNotice(
-                        message: message.text,
-                        actionLabel: '토론결과보기',
-                        onAction: () =>
-                            _showDebateResultPopup(message.debateId),
-                      )
-                    else if (message is CommunityDebateForfeitMessage)
-                      _CommunitySystemNotice(message: message.text)
-                    else
-                      ChatMessageTile(
-                        message: message,
-                        isMine:
-                            message.authorId == 'me' ||
-                            message.authorId == currentMember?.id,
-                        avatar: _ChatAvatar(
-                          accent: message.accentAvatar,
-                          onTap: () =>
+              child: ColoredBox(
+                color: AppColors.surface,
+                child: ListView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  children: [
+                    for (final message in visibleMessages)
+                      if (message is CommunityOpinionMessage)
+                        _DiscussionGuide(
+                          message: message,
+                          onStatementTap: () =>
                               _showUserProfileByUserId(message.authorId),
+                        )
+                      else if (message is CommunityDebateStartedMessage)
+                        _CommunitySystemNotice(message: message.text)
+                      else if (message is CommunityDebateResultMessage)
+                        _CommunitySystemNotice(
+                          message: message.text,
+                          actionLabel: '토론결과보기',
+                          onAction: () =>
+                              _showDebateResultPopup(message.debateId),
+                        )
+                      else if (message is CommunityDebateForfeitMessage)
+                        _CommunitySystemNotice(message: message.text)
+                      else if (message is CommunityDebateTimeoutMessage)
+                        _CommunitySystemNotice(message: message.text)
+                      else
+                        ChatMessageTile(
+                          message: message,
+                          isMine:
+                              message.authorId == 'me' ||
+                              message.authorId == currentMember?.id,
+                          avatar: _ChatAvatar(
+                            userName: message.authorName,
+                            imageUrl: profileImageByMemberId[message.authorId],
+                            accent: message.accentAvatar,
+                            onTap: () =>
+                                _showUserProfileByUserId(message.authorId),
+                          ),
+                          trailing:
+                              widget.viewerRole ==
+                                      CommunityChatViewerRole.host &&
+                                  currentMember != null &&
+                                  message.authorId != currentMember.id
+                              ? _NominateButton(
+                                  onTap: () => _confirmAndStartDebate(
+                                    message.authorId,
+                                    opponentName: message.authorName,
+                                  ),
+                                )
+                              : null,
+                          onRetry: () => _retryMessage(message),
                         ),
-                        trailing:
-                            widget.viewerRole == CommunityChatViewerRole.host &&
-                                currentMember != null &&
-                                message.authorId != currentMember.id
-                            ? _NominateButton(
-                                onTap: () =>
-                                    _confirmAndStartDebate(message.authorId),
-                              )
-                            : null,
-                        onRetry: () => _retryMessage(message),
-                      ),
-                ],
+                  ],
+                ),
               ),
             ),
             ChatComposer(
               controller: _messageController,
               enabled: hasMyOpinion,
               hintText: hasMyOpinion ? '관전방에서 대화하기' : '기조 발언 작성 후 채팅할 수 있습니다',
+              maxLines: 5,
               onSend: _send,
               leading: [
                 _CircleIconButton(
@@ -282,14 +308,6 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       return;
     }
 
-    CommunityMemberSummary? currentMembership;
-    for (final membership in members) {
-      if (membership.id == currentMember.id) {
-        currentMembership = membership;
-        break;
-      }
-    }
-
     showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -304,37 +322,57 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
             child: SizedBox(
               width: MediaQuery.sizeOf(dialogContext).width - 74,
               height: double.infinity,
-              child: CommunityMember(
-                userName: currentMember.displayName,
-                currentMemberId: currentMember.id,
-                profileImageUrl: currentMember.profileImageUrl,
-                userScore: currentMember.score,
-                members: members,
-                initialWantsToDebate: currentMembership?.wantsToDebate ?? true,
-                onDebateIntentChanged: (wantsToDebate) async {
-                  await ref
-                      .read(communityRepositoryProvider)
-                      .updateCommunityDebateIntent(
-                        communityId: widget.community.id,
-                        wantsToDebate: wantsToDebate,
+              child: Consumer(
+                builder: (context, dialogRef, child) {
+                  final latestMembers = dialogRef
+                      .watch(communityMembersProvider(widget.community.id))
+                      .asData
+                      ?.value;
+                  final visibleMembers = latestMembers ?? members;
+                  CommunityMemberSummary? currentMembership;
+                  for (final membership in visibleMembers) {
+                    if (membership.id == currentMember.id) {
+                      currentMembership = membership;
+                      break;
+                    }
+                  }
+                  return CommunityMember(
+                    userName: currentMember.displayName,
+                    currentMemberId: currentMember.id,
+                    profileImageUrl: currentMember.profileImageUrl,
+                    userScore: currentMember.score,
+                    members: visibleMembers,
+                    initialWantsToDebate:
+                        currentMembership?.wantsToDebate ?? true,
+                    onDebateIntentChanged: (wantsToDebate) async {
+                      await dialogRef
+                          .read(communityRepositoryProvider)
+                          .updateCommunityDebateIntent(
+                            communityId: widget.community.id,
+                            wantsToDebate: wantsToDebate,
+                          );
+                      dialogRef.invalidate(
+                        communityMembersProvider(widget.community.id),
                       );
-                  ref.invalidate(communityMembersProvider(widget.community.id));
+                    },
+                    onProfileTap: () => _showUserProfileByUserId(
+                      currentMember.id,
+                      allowDebate: false,
+                    ),
+                    onMemberProfileTap: (memberId) => _showUserProfileByUserId(
+                      memberId,
+                      allowDebate: memberId != currentMember.id,
+                    ),
+                    onClose: () => Navigator.pop(dialogContext),
+                    showHostActions:
+                        widget.viewerRole == CommunityChatViewerRole.host,
+                    onDeleteCommunity: () =>
+                        _showHostActionFeedback('커뮤니티 삭제 기능은 준비 중입니다.'),
+                    onLeaveCommunity: () =>
+                        _confirmLeaveCommunity(dialogContext),
+                    onReport: () => _showHostActionFeedback('신고 기능은 준비 중입니다.'),
+                  );
                 },
-                onProfileTap: () => _showUserProfileByUserId(
-                  currentMember.id,
-                  allowDebate: false,
-                ),
-                onMemberProfileTap: (memberId) => _showUserProfileByUserId(
-                  memberId,
-                  allowDebate: memberId != currentMember.id,
-                ),
-                onClose: () => Navigator.pop(dialogContext),
-                showHostActions:
-                    widget.viewerRole == CommunityChatViewerRole.host,
-                onDeleteCommunity: () =>
-                    _showHostActionFeedback('커뮤니티 삭제 기능은 준비 중입니다.'),
-                onLeaveCommunity: () => _confirmLeaveCommunity(dialogContext),
-                onReport: () => _showHostActionFeedback('신고 기능은 준비 중입니다.'),
               ),
             ),
           ),
@@ -447,23 +485,52 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       await ref
           .read(saveCommunityOpinionProvider(widget.community.id).notifier)
           .save(claim: draft.claim, reasons: draft.reasons);
-      ref.invalidate(communityOpinionHistoryProvider(widget.community.id));
-      final currentMember = ref.read(currentMemberProvider);
-      if (currentMember != null) {
-        ref.invalidate(
-          communityUserProfileProvider((
-            communityId: widget.community.id,
-            userId: currentMember.id,
-          )),
-        );
-      }
     } on Object {
+      // 모바일 네트워크에서 DB 저장 직후 ACK만 유실될 수 있다. 같은 기조 발언이
+      // REST 이력에 존재하면 저장 성공으로 복구해 사용자를 팝업에 가두지 않는다.
+      if (await _isOpinionStored(draft)) {
+        _refreshOpinionData();
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('기조 발언을 저장하지 못했습니다.')));
       }
       rethrow;
+    }
+    _refreshOpinionData();
+  }
+
+  Future<bool> _isOpinionStored(CommunityOpinionDraft draft) async {
+    final currentMember = ref.read(currentMemberProvider);
+    if (currentMember == null) return false;
+
+    try {
+      final opinions = await ref
+          .read(communityChatHistoryRepositoryProvider)
+          .fetchOpinions(widget.community.id);
+      return opinions.whereType<CommunityOpinionMessage>().any(
+        (opinion) =>
+            opinion.authorId == currentMember.id &&
+            opinion.claim == draft.claim &&
+            listEquals(opinion.reasons, draft.reasons),
+      );
+    } on Object {
+      return false;
+    }
+  }
+
+  void _refreshOpinionData() {
+    ref.invalidate(communityOpinionHistoryProvider(widget.community.id));
+    final currentMember = ref.read(currentMemberProvider);
+    if (currentMember != null) {
+      ref.invalidate(
+        communityUserProfileProvider((
+          communityId: widget.community.id,
+          userId: currentMember.id,
+        )),
+      );
     }
   }
 
@@ -551,13 +618,14 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     }
 
     if (event.type == CommunityChatEventType.debateStarted) {
+      _closeDebateRequestWaiting();
       ref.invalidate(activeCommunityDebateProvider(widget.community.id));
       final memberId = ref.read(currentMemberProvider)?.id;
       final isParticipant =
           memberId != null &&
           (memberId == event.sideASpeakerId ||
               memberId == event.sideBSpeakerId);
-      if (isParticipant && !_startingDebate && !_navigatingToDebate) {
+      if (isParticipant && !_navigatingToDebate) {
         final debateId = event.debateId;
         if (debateId != null) {
           unawaited(_openDebate(debateId));
@@ -566,8 +634,38 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       return;
     }
 
+    if (event.type == CommunityChatEventType.debateRequested) {
+      final invitation = event.debateInvitation;
+      if (invitation != null) {
+        unawaited(_showDebateInvitation(invitation));
+      }
+      return;
+    }
+
+    if (event.type == CommunityChatEventType.debateRequestRejected) {
+      _closeDebateRequestWaiting(event.invitationId);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('상대방이 토론 요청을 거부했어요.')));
+      return;
+    }
+
+    if (event.type == CommunityChatEventType.debateRequestExpired) {
+      if (_visibleDebateInvitationId == event.invitationId) {
+        _closeDebateInvitation(event.invitationId!);
+      } else if (_visibleOutgoingDebateInvitationId == event.invitationId) {
+        _closeDebateRequestWaiting(event.invitationId);
+      }
+      return;
+    }
+
     if (event.type == CommunityChatEventType.debateEnded) {
       ref.invalidate(activeCommunityDebateProvider(widget.community.id));
+      return;
+    }
+
+    if (event.type == CommunityChatEventType.memberDebateIntentChanged) {
+      ref.invalidate(communityMembersProvider(widget.community.id));
       return;
     }
 
@@ -630,6 +728,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     bool allowDebate = true,
   }) async {
     final CommunityUserProfile profile;
+    var wantsToDebate = false;
     final provider = communityUserProfileProvider((
       communityId: widget.community.id,
       userId: userId,
@@ -648,19 +747,43 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       return;
     }
 
+    try {
+      final members = await ref.read(
+        communityMembersProvider(widget.community.id).future,
+      );
+      for (final member in members) {
+        if (member.id == userId) {
+          wantsToDebate = member.wantsToDebate;
+          break;
+        }
+      }
+    } on Object {
+      // 준비 상태를 확인할 수 없으면 토론 시작을 보수적으로 차단한다.
+      wantsToDebate = false;
+    }
+
     if (!mounted) {
       return;
     }
 
-    _showUserProfile(profile, allowDebate: allowDebate);
+    _showUserProfile(
+      profile,
+      allowDebate: allowDebate,
+      wantsToDebate: wantsToDebate,
+    );
   }
 
   // 채팅방 위에 프로필 팝업을 띄우고, 토론하기 액션을 실제 토론방으로 연결한다.
   void _showUserProfile(
     CommunityUserProfile profile, {
     bool allowDebate = true,
+    bool wantsToDebate = false,
   }) {
-    final canStartDebate = allowDebate && widget.community.isOwnedByCurrentUser;
+    final currentMemberId = ref.read(currentMemberProvider)?.id;
+    final showDebateAction =
+        allowDebate &&
+        widget.community.isOwnedByCurrentUser &&
+        profile.userId != currentMemberId;
     showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.58),
@@ -674,14 +797,19 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
               profileImageUrl: profile.profileImageUrl,
               claim: profile.claim,
               reasons: profile.reasons,
-              role: canStartDebate
+              role: showDebateAction
                   ? DebatePopupRole.host
                   : DebatePopupRole.participant,
+              isDebateReady: wantsToDebate,
               onClose: () => Navigator.pop(dialogContext),
-              onDebate: canStartDebate
+              onDebate: showDebateAction && wantsToDebate
                   ? () async {
                       Navigator.pop(dialogContext);
-                      await _confirmAndStartDebate(profile.userId);
+                      await _confirmAndStartDebate(
+                        profile.userId,
+                        opponentName: profile.userName,
+                        opponentProfileImageUrl: profile.profileImageUrl,
+                      );
                     }
                   : null,
             ),
@@ -691,7 +819,11 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     );
   }
 
-  Future<void> _confirmAndStartDebate(String opponentMemberId) async {
+  Future<void> _confirmAndStartDebate(
+    String opponentMemberId, {
+    required String opponentName,
+    String? opponentProfileImageUrl,
+  }) async {
     await Future<void>.delayed(Duration.zero);
     if (!mounted) {
       return;
@@ -724,18 +856,23 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
 
     try {
       _startingDebate = true;
-      final debateId = await ref
+      final invitation = await ref
           .read(communityRepositoryProvider)
-          .createAndStartDebate(
+          .requestDebate(
             community: widget.community,
             opponentMemberId: opponentMemberId,
           );
       if (!mounted) {
         return;
       }
-      ref.invalidate(activeCommunityDebateProvider(widget.community.id));
       Navigator.of(context, rootNavigator: true).pop();
-      await _openDebate(debateId);
+      unawaited(
+        _showDebateRequestWaiting(
+          invitation,
+          opponentName: opponentName,
+          opponentProfileImageUrl: opponentProfileImageUrl,
+        ),
+      );
     } on Object {
       if (!mounted) {
         return;
@@ -747,6 +884,114 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     } finally {
       _startingDebate = false;
     }
+  }
+
+  Future<void> _showDebateRequestWaiting(
+    CommunityDebateInvitation invitation, {
+    required String opponentName,
+    String? opponentProfileImageUrl,
+  }) async {
+    if (!mounted ||
+        _visibleOutgoingDebateInvitationId != null ||
+        invitation.expiresAt.isBefore(DateTime.now())) {
+      return;
+    }
+
+    _visibleOutgoingDebateInvitationId = invitation.id;
+    final remaining = invitation.expiresAt.difference(DateTime.now());
+    late final Timer timeout;
+    final dialogFuture = showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.58),
+      builder: (_) => _DebateRequestWaitingDialog(
+        opponentName: opponentName,
+        opponentProfileImageUrl: opponentProfileImageUrl,
+        expiresAt: invitation.expiresAt,
+      ),
+    );
+    timeout = Timer(remaining, () {
+      if (_visibleOutgoingDebateInvitationId != invitation.id) return;
+      _closeDebateRequestWaiting(invitation.id);
+    });
+    await dialogFuture;
+    timeout.cancel();
+    if (_visibleOutgoingDebateInvitationId == invitation.id) {
+      _visibleOutgoingDebateInvitationId = null;
+    }
+  }
+
+  void _closeDebateRequestWaiting([String? invitationId]) {
+    final visibleId = _visibleOutgoingDebateInvitationId;
+    if (!mounted ||
+        visibleId == null ||
+        (invitationId != null && invitationId != visibleId)) {
+      return;
+    }
+    _visibleOutgoingDebateInvitationId = null;
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
+  Future<void> _showDebateInvitation(
+    CommunityDebateInvitation invitation,
+  ) async {
+    if (!mounted || _visibleDebateInvitationId != null) return;
+    final remaining = invitation.expiresAt.difference(DateTime.now());
+    if (remaining <= Duration.zero) return;
+
+    _visibleDebateInvitationId = invitation.id;
+    Timer? timeout;
+    final responseFuture = showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.58),
+      builder: (dialogContext) => AppConfirmationDialog(
+        header: _DebateInvitationCountdown(expiresAt: invitation.expiresAt),
+        title: '${invitation.hostName}님으로부터 토론 요청이 왔습니다.',
+        description: '토론방에 입장하시겠습니까?\n5초 안에 응답하지 않으면 자동으로 거부됩니다.',
+        cancelLabel: '거부',
+        confirmLabel: '확인',
+        onCancel: () => _closeDebateInvitation(invitation.id, false),
+        onConfirm: () => _closeDebateInvitation(invitation.id, true),
+      ),
+    );
+    timeout = Timer(remaining, () {
+      _closeDebateInvitation(invitation.id);
+    });
+    final accepted = await responseFuture;
+    timeout.cancel();
+    if (_visibleDebateInvitationId == invitation.id) {
+      _visibleDebateInvitationId = null;
+    }
+    if (!mounted || accepted == null) return;
+
+    try {
+      final repository = ref.read(communityRepositoryProvider);
+      if (!accepted) {
+        await repository.rejectDebateInvitation(
+          communityId: widget.community.id,
+          invitationId: invitation.id,
+        );
+        return;
+      }
+      final debateId = await repository.acceptDebateInvitation(
+        communityId: widget.community.id,
+        invitationId: invitation.id,
+      );
+      if (mounted) await _openDebate(debateId);
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('토론 요청 응답을 처리하지 못했습니다.')));
+      }
+    }
+  }
+
+  void _closeDebateInvitation(String invitationId, [bool? accepted]) {
+    if (!mounted || _visibleDebateInvitationId != invitationId) return;
+    _visibleDebateInvitationId = null;
+    Navigator.of(context, rootNavigator: true).pop(accepted);
   }
 
   Future<void> _openDebate(String debateId) async {
@@ -762,6 +1007,161 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
         ref.invalidate(activeCommunityDebateProvider(widget.community.id));
       }
     }
+  }
+}
+
+class _DebateInvitationCountdown extends StatefulWidget {
+  const _DebateInvitationCountdown({required this.expiresAt});
+
+  final DateTime expiresAt;
+
+  @override
+  State<_DebateInvitationCountdown> createState() =>
+      _DebateInvitationCountdownState();
+}
+
+class _DebateRequestWaitingDialog extends StatelessWidget {
+  const _DebateRequestWaitingDialog({
+    required this.opponentName,
+    required this.opponentProfileImageUrl,
+    required this.expiresAt,
+  });
+
+  final String opponentName;
+  final String? opponentProfileImageUrl;
+  final DateTime expiresAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = opponentProfileImageUrl?.trim();
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 354),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DebateInvitationCountdown(expiresAt: expiresAt),
+              const SizedBox(height: 20),
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: AppColors.surfaceElevated,
+                backgroundImage: imageUrl != null && imageUrl.isNotEmpty
+                    ? NetworkImage(imageUrl)
+                    : null,
+                child: imageUrl == null || imageUrl.isEmpty
+                    ? const Icon(
+                        Icons.person_rounded,
+                        color: AppColors.textMuted,
+                        size: 32,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '$opponentName님의 응답을 기다리고 있어요',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 18,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '5초 안에 응답이 없으면\n요청이 자동으로 취소됩니다.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFFA7B4BF),
+                  fontSize: 15,
+                  height: 1.5,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DebateInvitationCountdownState extends State<_DebateInvitationCountdown>
+    with SingleTickerProviderStateMixin {
+  static const _duration = Duration(seconds: 5);
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final remaining = widget.expiresAt.difference(DateTime.now());
+    final remainingFraction =
+        remaining.inMicroseconds.clamp(0, _duration.inMicroseconds) /
+        _duration.inMicroseconds;
+    _controller = AnimationController(vsync: this, duration: _duration)
+      ..reverse(from: remainingFraction);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final progress = _controller.value;
+        final seconds = (progress * _duration.inSeconds).ceil();
+        final color = seconds <= 2
+            ? const Color(0xFFF26A4F)
+            : AppColors.primary;
+
+        return SizedBox.square(
+          dimension: 52,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.primarySoft,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox.square(
+                dimension: 52,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 4,
+                  strokeCap: StrokeCap.round,
+                  backgroundColor: AppColors.surfaceElevated,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+              Text(
+                '$seconds',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -1259,29 +1659,69 @@ class _DebaterPreview extends StatelessWidget {
 }
 
 class _ChatAvatar extends StatelessWidget {
-  const _ChatAvatar({required this.accent, required this.onTap});
+  const _ChatAvatar({
+    required this.userName,
+    required this.imageUrl,
+    required this.accent,
+    required this.onTap,
+  });
 
+  final String userName;
+  final String? imageUrl;
   final bool accent;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final normalizedUrl = imageUrl?.trim();
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: const Color(0xFFE6E7E8),
-          gradient: accent
-              ? const RadialGradient(
-                  center: Alignment(0.2, 0.2),
-                  radius: 0.9,
-                  colors: [Color(0xFFFE7D34), Color(0xFFE6E7E8)],
-                )
-              : null,
+      child: ClipOval(
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: normalizedUrl == null || normalizedUrl.isEmpty
+              ? _ChatAvatarFallback(userName: userName, accent: accent)
+              : Image.network(
+                  normalizedUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) =>
+                      _ChatAvatarFallback(userName: userName, accent: accent),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatAvatarFallback extends StatelessWidget {
+  const _ChatAvatarFallback({required this.userName, required this.accent});
+
+  final String userName;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = userName.trim();
+    return Container(
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE6E7E8),
+        gradient: accent
+            ? const RadialGradient(
+                center: Alignment(0.2, 0.2),
+                radius: 0.9,
+                colors: [Color(0xFFFE7D34), Color(0xFFE6E7E8)],
+              )
+            : null,
+      ),
+      child: Text(
+        normalizedName.isEmpty ? '?' : normalizedName.characters.first,
+        style: const TextStyle(
+          color: AppColors.textSubtle,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

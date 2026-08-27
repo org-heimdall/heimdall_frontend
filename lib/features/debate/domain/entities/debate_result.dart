@@ -59,6 +59,8 @@ class FactCheckResult {
   const FactCheckResult({
     required this.id,
     required this.componentId,
+    this.speakerId,
+    this.speakerSide,
     required this.claim,
     required this.status,
     required this.reason,
@@ -68,6 +70,8 @@ class FactCheckResult {
 
   final String id;
   final String componentId;
+  final String? speakerId;
+  final String? speakerSide;
   final String claim;
   final FactCheckStatus status;
   final String reason;

@@ -1,6 +1,7 @@
 import '../../domain/entities/community_chat.dart';
 import '../../domain/repositories/community_chat_realtime_repository.dart';
 import '../mappers/community_chat_response_mapper.dart';
+import '../mappers/community_response_mapper.dart';
 import '../realtime/community_chat_realtime_client.dart';
 
 class CommunityChatRealtimeRepositoryImpl
@@ -84,12 +85,60 @@ class CommunityChatRealtimeRepositoryImpl
       );
     }
 
+    if (type == 'debate.requested') {
+      final invitationRaw = raw['invitation'];
+      if (invitationRaw is! Map<String, Object?>) {
+        throw const FormatException('토론 초대 이벤트가 올바르지 않습니다.');
+      }
+      return CommunityChatEvent(
+        id: raw['id'] as String,
+        communityId: raw['communityId'] as String,
+        type: CommunityChatEventType.debateRequested,
+        debateInvitation: const CommunityResponseMapper().mapDebateInvitation(
+          Map<String, dynamic>.from(invitationRaw),
+        ),
+      );
+    }
+
+    if (type == 'debate.request.rejected') {
+      return CommunityChatEvent(
+        id: raw['id'] as String,
+        communityId: raw['communityId'] as String,
+        type: CommunityChatEventType.debateRequestRejected,
+        invitationId: raw['invitationId'] as String?,
+      );
+    }
+
+    if (type == 'debate.request.expired') {
+      return CommunityChatEvent(
+        id: raw['id'] as String,
+        communityId: raw['communityId'] as String,
+        type: CommunityChatEventType.debateRequestExpired,
+        invitationId: raw['invitationId'] as String?,
+      );
+    }
+
     if (type == 'debate.ended') {
       return CommunityChatEvent(
         id: raw['id'] as String,
         communityId: raw['communityId'] as String,
         type: CommunityChatEventType.debateEnded,
         debateId: raw['debateId'] as String,
+      );
+    }
+
+    if (type == 'community.member.debate-intent.changed') {
+      final member = raw['member'] as Map<String, Object?>?;
+      if (member == null) {
+        throw const FormatException('커뮤니티 멤버 상태 이벤트가 올바르지 않습니다.');
+      }
+      return CommunityChatEvent(
+        id: raw['id'] as String,
+        communityId: raw['communityId'] as String,
+        type: CommunityChatEventType.memberDebateIntentChanged,
+        memberId: member['id'] as String,
+        memberName: member['displayName'] as String,
+        debateIntent: member['debateIntent'] as String,
       );
     }
 

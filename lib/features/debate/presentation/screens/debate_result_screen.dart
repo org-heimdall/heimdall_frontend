@@ -125,45 +125,23 @@ class DebateResultScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                for (final score in result.scores)
-                  Expanded(
-                    child: HeimdallCard(
-                      margin: EdgeInsets.only(
-                        right: score == result.scores.first ? 8 : 0,
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            score.side.label,
-                            style: const TextStyle(color: AppColors.textMuted),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${score.score}',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            score.summary,
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 12,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      ),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (
+                    var index = 0;
+                    index < result.scores.length;
+                    index++
+                  ) ...[
+                    Expanded(
+                      child: _DebateScoreCard(score: result.scores[index]),
                     ),
-                  ),
-              ],
+                    if (index < result.scores.length - 1)
+                      const SizedBox(width: 8),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             DebateResultSection(
@@ -200,6 +178,47 @@ class DebateResultScreen extends StatelessWidget {
       bottomNavigationBar: HeimdallBottomActionBar(
         label: '확인',
         onPressed: () => _returnToCommunityChat(context, community),
+      ),
+    );
+  }
+}
+
+class _DebateScoreCard extends StatelessWidget {
+  const _DebateScoreCard({required this.score});
+
+  final DebateScore score;
+
+  @override
+  Widget build(BuildContext context) {
+    return HeimdallCard(
+      key: ValueKey('debate-score-card-${score.side.name}'),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            score.side.label,
+            style: const TextStyle(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${score.score}',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            score.summary,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+        ],
       ),
     );
   }

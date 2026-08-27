@@ -89,6 +89,83 @@ void main() {
       );
     },
   );
+
+  test('maps a realtime debate-start system notification', () async {
+    final client = _FakeCommunityChatRealtimeClient([
+      {
+        'id': 'start-event',
+        'type': 'message.created',
+        'communityId': 'community-1',
+        'message': {
+          'id': 'start-message',
+          'communityId': 'community-1',
+          'clientMessageId': 'debate_started:debate-1',
+          'authorId': 'system',
+          'authorName': '헤임달',
+          'text': '윤호님과 현우님이 토론을 시작했습니다.',
+          'messageType': 'DEBATE_STARTED',
+          'debateId': 'debate-1',
+          'createdAt': '2026-08-24T08:00:00.000Z',
+        },
+      },
+    ]);
+
+    final event = await CommunityChatRealtimeRepositoryImpl(
+      client,
+    ).watchEvents('community-1').first;
+
+    expect(event.message, isA<CommunityDebateStartedMessage>());
+  });
+
+  test('maps a member debate-intent change event', () async {
+    final client = _FakeCommunityChatRealtimeClient([
+      {
+        'id': 'intent-event',
+        'type': 'community.member.debate-intent.changed',
+        'communityId': 'community-1',
+        'member': {
+          'id': 'member-1',
+          'displayName': '현우',
+          'debateIntent': 'OPEN_TO_DEBATE',
+        },
+      },
+    ]);
+
+    final event = await CommunityChatRealtimeRepositoryImpl(
+      client,
+    ).watchEvents('community-1').first;
+
+    expect(event.type, CommunityChatEventType.memberDebateIntentChanged);
+    expect(event.memberId, 'member-1');
+    expect(event.memberName, '현우');
+    expect(event.debateIntent, 'OPEN_TO_DEBATE');
+  });
+
+  test('maps a targeted debate invitation event', () async {
+    final client = _FakeCommunityChatRealtimeClient([
+      {
+        'id': 'invitation-event',
+        'type': 'debate.requested',
+        'communityId': 'community-1',
+        'invitation': {
+          'id': 'invitation-1',
+          'communityId': 'community-1',
+          'hostMemberId': 'host-1',
+          'hostName': '윤호',
+          'opponentMemberId': 'opponent-1',
+          'expiresAt': '2026-08-25T01:00:10.000Z',
+        },
+      },
+    ]);
+
+    final event = await CommunityChatRealtimeRepositoryImpl(
+      client,
+    ).watchEvents('community-1').first;
+
+    expect(event.type, CommunityChatEventType.debateRequested);
+    expect(event.debateInvitation?.hostName, '윤호');
+    expect(event.debateInvitation?.opponentMemberId, 'opponent-1');
+  });
 }
 
 class _FakeCommunityChatRealtimeClient implements CommunityChatRealtimeClient {

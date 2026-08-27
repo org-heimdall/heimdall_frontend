@@ -26,6 +26,15 @@ enum CommunityStatus {
   final String label;
 }
 
+enum CommunitySortOrder {
+  recommended('추천순'),
+  latest('최신순');
+
+  const CommunitySortOrder(this.label);
+
+  final String label;
+}
+
 int debateDurationMinutesForRounds(int rounds) => rounds * 6 + 4;
 
 class CommunityHost {

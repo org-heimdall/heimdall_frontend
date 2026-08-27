@@ -13,6 +13,7 @@ class DebatePopupSheet extends StatelessWidget {
     required this.reasons,
     this.profileImageUrl,
     this.role = DebatePopupRole.participant,
+    this.isDebateReady = true,
     this.onClose,
     this.onDebate,
     super.key,
@@ -24,6 +25,7 @@ class DebatePopupSheet extends StatelessWidget {
   final List<String> reasons;
   final String? profileImageUrl;
   final DebatePopupRole role;
+  final bool isDebateReady;
   final VoidCallback? onClose;
   final VoidCallback? onDebate;
 
@@ -39,33 +41,32 @@ class DebatePopupSheet extends StatelessWidget {
           width: 370,
           height: _isHost ? 524 : 540,
           color: AppColors.surface,
-          child: Stack(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: EdgeInsets.only(bottom: _isHost ? 0 : 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Semantics(
-                          button: true,
-                          label: '닫기',
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: onClose,
-                            child: SvgPicture.asset(
-                              AppAssets.profilePopupClose,
-                              width: 24,
-                              height: 24,
-                            ),
-                          ),
-                        ),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Semantics(
+                    button: true,
+                    label: '닫기',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onClose,
+                      child: SvgPicture.asset(
+                        AppAssets.profilePopupClose,
+                        width: 24,
+                        height: 24,
                       ),
                     ),
-                    Expanded(
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
                         child: Column(
@@ -84,35 +85,36 @@ class DebatePopupSheet extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (_isHost)
-                      Container(
-                        color: AppColors.surface,
-                        padding: const EdgeInsets.all(16),
-                        child: HeimdallPrimaryButton(
-                          label: '토론하기',
-                          onPressed: onDebate,
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: IgnorePointer(
+                        child: Container(
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0x0022282D), AppColors.surface],
+                            ),
+                          ),
                         ),
                       ),
+                    ),
                   ],
                 ),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: _isHost ? 89 : 16,
-                child: IgnorePointer(
-                  child: Container(
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x0022282D), AppColors.surface],
-                      ),
-                    ),
+              if (_isHost)
+                Container(
+                  color: AppColors.surface,
+                  padding: const EdgeInsets.all(16),
+                  child: HeimdallPrimaryButton(
+                    label: isDebateReady ? '토론하기' : '아직 토론 준비 중이에요',
+                    onPressed: isDebateReady ? onDebate : null,
+                    active: isDebateReady,
                   ),
                 ),
-              ),
             ],
           ),
         ),

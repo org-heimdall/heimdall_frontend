@@ -16,6 +16,15 @@ class CommunityChatResponseMapper {
     );
 
     return switch (json['messageType']) {
+      'DEBATE_STARTED' => CommunityDebateStartedMessage(
+        id: common.id,
+        scopeId: common.scopeId,
+        clientMessageId: common.clientMessageId,
+        authorId: common.authorId,
+        authorName: common.authorName,
+        text: common.text,
+        createdAt: common.createdAt,
+      ),
       'DEBATE_RESULT' => CommunityDebateResultMessage(
         id: common.id,
         scopeId: common.scopeId,
@@ -27,6 +36,15 @@ class CommunityChatResponseMapper {
         createdAt: common.createdAt,
       ),
       'DEBATE_FORFEIT' => CommunityDebateForfeitMessage(
+        id: common.id,
+        scopeId: common.scopeId,
+        clientMessageId: common.clientMessageId,
+        authorId: common.authorId,
+        authorName: common.authorName,
+        text: common.text,
+        createdAt: common.createdAt,
+      ),
+      'DEBATE_TIMEOUT' => CommunityDebateTimeoutMessage(
         id: common.id,
         scopeId: common.scopeId,
         clientMessageId: common.clientMessageId,

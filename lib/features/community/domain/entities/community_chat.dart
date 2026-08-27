@@ -31,8 +31,32 @@ class CommunityDebateResultMessage extends ChatMessage {
   final String debateId;
 }
 
+class CommunityDebateStartedMessage extends ChatMessage {
+  const CommunityDebateStartedMessage({
+    required super.id,
+    required super.scopeId,
+    required super.authorId,
+    required super.authorName,
+    required super.text,
+    required super.createdAt,
+    super.clientMessageId,
+  });
+}
+
 class CommunityDebateForfeitMessage extends ChatMessage {
   const CommunityDebateForfeitMessage({
+    required super.id,
+    required super.scopeId,
+    required super.authorId,
+    required super.authorName,
+    required super.text,
+    required super.createdAt,
+    super.clientMessageId,
+  });
+}
+
+class CommunityDebateTimeoutMessage extends ChatMessage {
+  const CommunityDebateTimeoutMessage({
     required super.id,
     required super.scopeId,
     required super.authorId,
@@ -73,9 +97,14 @@ class CommunityChatEvent {
     this.debateId,
     this.sideASpeakerId,
     this.sideBSpeakerId,
+    this.memberId,
+    this.memberName,
+    this.debateIntent,
     this.commandId,
     this.status,
     this.errorMessage,
+    this.debateInvitation,
+    this.invitationId,
   });
 
   final String id;
@@ -86,9 +115,32 @@ class CommunityChatEvent {
   final String? debateId;
   final String? sideASpeakerId;
   final String? sideBSpeakerId;
+  final String? memberId;
+  final String? memberName;
+  final String? debateIntent;
   final String? commandId;
   final String? status;
   final String? errorMessage;
+  final CommunityDebateInvitation? debateInvitation;
+  final String? invitationId;
+}
+
+class CommunityDebateInvitation {
+  const CommunityDebateInvitation({
+    required this.id,
+    required this.communityId,
+    required this.hostMemberId,
+    required this.hostName,
+    required this.opponentMemberId,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final String communityId;
+  final String hostMemberId;
+  final String hostName;
+  final String opponentMemberId;
+  final DateTime expiresAt;
 }
 
 class CommunityChatCommand {
@@ -138,6 +190,10 @@ enum CommunityChatEventType {
   connectionRestored,
   debateStarted,
   debateEnded,
+  debateRequested,
+  debateRequestRejected,
+  debateRequestExpired,
+  memberDebateIntentChanged,
   error,
 }
 

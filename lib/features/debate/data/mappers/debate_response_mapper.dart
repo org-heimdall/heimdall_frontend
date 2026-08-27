@@ -132,6 +132,8 @@ class DebateResponseMapper {
       return FactCheckResult(
         id: _requiredString(item, 'id'),
         componentId: _requiredString(item, 'componentId'),
+        speakerId: item['speakerId'] as String?,
+        speakerSide: item['speakerSide'] as String?,
         claim: _requiredString(item, 'statement'),
         status: FactCheckStatus.fromWireValue(_requiredString(item, 'status')),
         reason: _requiredString(item, 'reason'),
@@ -175,6 +177,10 @@ class DebateResponseMapper {
       displayName: _requiredString(raw, 'displayName'),
       score: _requiredInt(raw, 'score'),
       profileImageUrl: raw['profileImageUrl'] as String?,
+      claim: raw['claim'] as String? ?? '',
+      reasons:
+          (raw['reasons'] as List<dynamic>?)?.whereType<String>().toList() ??
+          const [],
     );
   }
 

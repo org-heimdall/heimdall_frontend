@@ -91,16 +91,43 @@ class _CommunityListScreenState extends ConsumerState<CommunityListScreen> {
                                   letterSpacing: -0.3,
                                 ),
                               ),
-                              InkWell(
-                                onTap: () {},
-                                borderRadius: BorderRadius.circular(6),
-                                child: const Padding(
+                              PopupMenuButton<CommunitySortOrder>(
+                                initialValue: filter.sortOrder,
+                                position: PopupMenuPosition.under,
+                                color: AppColors.surface,
+                                elevation: 8,
+                                onSelected: (sortOrder) {
+                                  ref
+                                      .read(communityFilterProvider.notifier)
+                                      .setSortOrder(sortOrder);
+                                },
+                                itemBuilder: (context) => [
+                                  for (final sortOrder
+                                      in CommunitySortOrder.values)
+                                    PopupMenuItem(
+                                      value: sortOrder,
+                                      child: Text(
+                                        sortOrder.label,
+                                        style: TextStyle(
+                                          color: sortOrder == filter.sortOrder
+                                              ? AppColors.primarySoft
+                                              : AppColors.textSecondary,
+                                          fontSize: 14,
+                                          fontWeight:
+                                              sortOrder == filter.sortOrder
+                                              ? FontWeight.w600
+                                              : FontWeight.w400,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                                child: Padding(
                                   padding: EdgeInsets.symmetric(vertical: 4),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        '추천순',
+                                        filter.sortOrder.label,
                                         style: TextStyle(
                                           color: AppColors.textMuted,
                                           fontSize: 13,
