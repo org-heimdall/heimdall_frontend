@@ -782,8 +782,6 @@ class _CommunityObserverDialog extends ConsumerStatefulWidget {
 class _CommunityObserverDialogState
     extends ConsumerState<_CommunityObserverDialog> {
   late Future<DebateDetail?> _activeDebate;
-  ProviderSubscription<AsyncValue<DebateChatRealtimeEvent>>? _debateEventsSub;
-  String? _subscribedDebateId;
 
   @override
   void initState() {
@@ -799,30 +797,6 @@ class _CommunityObserverDialogState
 
   void _retryActiveDebate() {
     setState(() => _activeDebate = _fetchActiveDebate());
-  }
-
-  @override
-  void dispose() {
-    _debateEventsSub?.close();
-    super.dispose();
-  }
-
-  void _listenToDebateEvents(String debateId) {
-    if (_subscribedDebateId == debateId) {
-      return;
-    }
-
-    _debateEventsSub?.close();
-    _subscribedDebateId = debateId;
-    _debateEventsSub = ref.listenManual<AsyncValue<DebateChatRealtimeEvent>>(
-      debateChatEventsProvider(debateId),
-      (previous, next) {
-        final event = next.asData?.value;
-        if (event?.type == DebateChatRealtimeEventType.turnFinalized) {
-          ref.invalidate(finalizedDebateTurnsProvider(debateId));
-        }
-      },
-    );
   }
 
   @override
@@ -856,7 +830,15 @@ class _CommunityObserverDialogState
           );
         }
 
-        _listenToDebateEvents(debate.id);
+        ref.listen<AsyncValue<DebateChatRealtimeEvent>>(
+          debateChatEventsProvider(debate.id),
+          (previous, next) {
+            final event = next.asData?.value;
+            if (event?.type == DebateChatRealtimeEventType.turnFinalized) {
+              ref.invalidate(finalizedDebateTurnsProvider(debate.id));
+            }
+          },
+        );
 
         return ref
             .watch(finalizedDebateTurnsProvider(debate.id))
