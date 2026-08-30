@@ -27,7 +27,7 @@ enum FactCheckStatus {
   partiallySupported('PARTIALLY_SUPPORTED', '일부 근거 있음'),
   insufficientEvidence('INSUFFICIENT_EVIDENCE', '근거 부족'),
   notVerifiable('NOT_VERIFIABLE', '검증 불가'),
-  outdatedOrTimeSensitive('OUTDATED_OR_TIME_SENSITIVE', '시점 확인 필요'),
+  outdated('OUTDATED', '오래된 정보'),
   unknown('UNKNOWN', '확인 필요');
 
   const FactCheckStatus(this.wireValue, this.label);
@@ -59,6 +59,8 @@ class FactCheckResult {
   const FactCheckResult({
     required this.id,
     required this.componentId,
+    this.speakerId,
+    this.speakerSide,
     required this.claim,
     required this.status,
     required this.reason,
@@ -68,6 +70,8 @@ class FactCheckResult {
 
   final String id;
   final String componentId;
+  final String? speakerId;
+  final String? speakerSide;
   final String claim;
   final FactCheckStatus status;
   final String reason;

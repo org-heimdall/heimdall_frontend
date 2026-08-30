@@ -53,7 +53,7 @@ class DebateStartDialog extends StatelessWidget {
                           _RoundSummary(rounds: community.rounds),
                           const SizedBox(height: 24),
                           _InfoSection(
-                            label: '나의 주장',
+                            label: '호스트 주장',
                             value: _valueOrFallback(
                               community.hostClaim,
                               '작성된 주장이 없습니다.',
@@ -405,7 +405,6 @@ class _DialogActions extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surfaceElevated,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
               ),
               foregroundColor: AppColors.textMuted,
             ),

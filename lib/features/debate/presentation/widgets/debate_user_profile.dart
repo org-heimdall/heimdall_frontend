@@ -129,12 +129,12 @@ class _AvatarFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalizedName = name.trim();
     return ColoredBox(
-      color: AppColors.surfaceElevated,
+      color: AppColors.primarySoft,
       child: Center(
         child: Text(
           normalizedName.isEmpty ? '?' : normalizedName.characters.first,
           style: const TextStyle(
-            color: AppColors.textSecondary,
+            color: AppColors.primary,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),

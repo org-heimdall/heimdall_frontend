@@ -13,8 +13,9 @@ class CommunityOpinionDraft {
 }
 
 class CommunityOpinionSheet extends StatefulWidget {
-  const CommunityOpinionSheet({this.onSubmit, super.key});
+  const CommunityOpinionSheet({this.initialDraft, this.onSubmit, super.key});
 
+  final CommunityOpinionDraft? initialDraft;
   final FutureOr<void> Function(CommunityOpinionDraft draft)? onSubmit;
 
   @override
@@ -22,10 +23,8 @@ class CommunityOpinionSheet extends StatefulWidget {
 }
 
 class _CommunityOpinionSheetState extends State<CommunityOpinionSheet> {
-  final _claimController = TextEditingController();
-  final List<TextEditingController> _reasonControllers = [
-    TextEditingController(),
-  ];
+  late final TextEditingController _claimController;
+  late final List<TextEditingController> _reasonControllers;
 
   bool _submitting = false;
 
@@ -35,6 +34,15 @@ class _CommunityOpinionSheetState extends State<CommunityOpinionSheet> {
   @override
   void initState() {
     super.initState();
+    final initialDraft = widget.initialDraft;
+    _claimController = TextEditingController(text: initialDraft?.claim ?? '');
+    final initialReasons = initialDraft?.reasons ?? const <String>[];
+    _reasonControllers = initialReasons.isEmpty
+        ? [TextEditingController()]
+        : [
+            for (final reason in initialReasons)
+              TextEditingController(text: reason),
+          ];
     _claimController.addListener(_refresh);
   }
 
@@ -64,38 +72,43 @@ class _CommunityOpinionSheetState extends State<CommunityOpinionSheet> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         child: ColoredBox(
           color: AppColors.background,
-          child: SizedBox(
-            height: sheetHeight,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Center(child: _SheetHandle()),
-                        const SizedBox(height: 40),
-                        const _SheetHeader(),
-                        const SizedBox(height: 40),
-                        _ClaimField(controller: _claimController),
-                        const SizedBox(height: 40),
-                        _ReasonFields(
-                          controllers: _reasonControllers,
-                          onAdd: _addReason,
-                          onChanged: _refresh,
-                        ),
-                      ],
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: SizedBox(
+              height: sheetHeight,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Center(child: _SheetHandle()),
+                          const SizedBox(height: 40),
+                          _SheetHeader(editing: widget.initialDraft != null),
+                          const SizedBox(height: 40),
+                          _ClaimField(controller: _claimController),
+                          const SizedBox(height: 40),
+                          _ReasonFields(
+                            controllers: _reasonControllers,
+                            onAdd: _addReason,
+                            onChanged: _refresh,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                _SubmitBar(
-                  enabled: _canSubmit,
-                  submitting: _submitting,
-                  onPressed: _submit,
-                ),
-              ],
+                  _SubmitBar(
+                    enabled: _canSubmit,
+                    submitting: _submitting,
+                    editing: widget.initialDraft != null,
+                    onPressed: _submit,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -133,10 +146,12 @@ class _CommunityOpinionSheetState extends State<CommunityOpinionSheet> {
     );
 
     try {
-      await widget.onSubmit?.call(draft);
       if (mounted) {
         Navigator.pop(context, draft);
       }
+      // 저장 요청은 시트를 닫은 뒤에도 계속 진행해 입력 화면이 ACK를
+      // 기다리며 멈춰 보이지 않도록 한다. 실패 처리는 호출 화면에서 담당한다.
+      await widget.onSubmit?.call(draft);
     } on Object {
       // 호출 화면에서 오류 안내를 표시하며, 입력 내용은 재시도를 위해 유지한다.
     } finally {
@@ -166,16 +181,18 @@ class _SheetHandle extends StatelessWidget {
 }
 
 class _SheetHeader extends StatelessWidget {
-  const _SheetHeader();
+  const _SheetHeader({required this.editing});
+
+  final bool editing;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '기조 발언 작성하기',
-          style: TextStyle(
+          editing ? '기조 발언 수정하기' : '기조 발언 작성하기',
+          style: const TextStyle(
             color: AppColors.textSecondary,
             fontSize: 22,
             height: 1.4,
@@ -183,8 +200,8 @@ class _SheetHeader extends StatelessWidget {
             letterSpacing: -0.5,
           ),
         ),
-        SizedBox(height: 4),
-        Text(
+        const SizedBox(height: 4),
+        const Text(
           '나의 주장을 입력해 호스트에게 토론 참여 의사를 표하세요.',
           style: TextStyle(
             color: AppColors.textMuted,
@@ -211,7 +228,7 @@ class _ClaimField extends StatelessWidget {
       child: _OpinionTextField(
         controller: controller,
         hintText: '토론 주제에 대한 나의 주장을 한 줄 요약해주세요.',
-        textInputAction: TextInputAction.next,
+        textInputAction: TextInputAction.newline,
       ),
     );
   }
@@ -381,10 +398,12 @@ class _OpinionTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 52, maxHeight: 104),
       child: TextField(
         controller: controller,
+        minLines: 1,
+        maxLines: 3,
         textInputAction: textInputAction,
         style: const TextStyle(
           color: AppColors.textSecondary,
@@ -457,11 +476,13 @@ class _SubmitBar extends StatelessWidget {
   const _SubmitBar({
     required this.enabled,
     required this.submitting,
+    required this.editing,
     required this.onPressed,
   });
 
   final bool enabled;
   final bool submitting;
+  final bool editing;
   final VoidCallback onPressed;
 
   @override
@@ -498,7 +519,7 @@ class _SubmitBar extends StatelessWidget {
                 height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Text('발언 작성하기'),
+            : Text(editing ? '수정 완료' : '발언 작성하기'),
       ),
     );
   }

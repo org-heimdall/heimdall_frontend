@@ -33,7 +33,7 @@ class DebateMessageInput extends StatelessWidget {
             child: TextField(
               controller: controller,
               enabled: enabled,
-              maxLength: 1000,
+              maxLength: 500,
               minLines: 1,
               maxLines: 4,
               style: const TextStyle(color: AppColors.textPrimary),

@@ -1,9 +1,11 @@
 import '../entities/community.dart';
+import '../entities/community_chat.dart';
 
 abstract interface class CommunityRepository {
   Future<List<Community>> fetchCommunities({
     CommunityCategory category = CommunityCategory.all,
     String query = '',
+    CommunitySortOrder sortOrder = CommunitySortOrder.recommended,
   });
 
   Future<Community> fetchCommunityById(String id);
@@ -18,9 +20,19 @@ abstract interface class CommunityRepository {
     required List<String> hostReasons,
   });
 
-  Future<String> createAndStartDebate({
+  Future<CommunityDebateInvitation> requestDebate({
     required Community community,
     required String opponentMemberId,
+  });
+
+  Future<String> acceptDebateInvitation({
+    required String communityId,
+    required String invitationId,
+  });
+
+  Future<void> rejectDebateInvitation({
+    required String communityId,
+    required String invitationId,
   });
 
   Future<void> joinCommunity(String communityId);

@@ -122,8 +122,6 @@ class _CommunityDebateCard extends StatelessWidget {
           const SizedBox(height: 13),
           Text(
             community.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 22,
@@ -170,27 +168,75 @@ class _StackedParticipants extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = <Color>[Color(community.host.avatarColor)];
+    final participants = community.participantPreviews.isEmpty
+        ? [
+            CommunityParticipantPreview(
+              id: community.host.id ?? 'host',
+              displayName: community.host.name,
+              profileImageUrl: community.host.profileImageUrl,
+            ),
+          ]
+        : community.participantPreviews.take(2).toList();
 
     return SizedBox(
-      width: 28,
+      width: 28 + (participants.length - 1) * 16,
       height: 28,
       child: Stack(
         children: [
-          for (var i = 0; i < colors.length; i++)
+          for (var i = 0; i < participants.length; i++)
             Positioned(
               left: i * 16,
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: colors[i],
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.card, width: 2),
-                ),
-              ),
+              child: _DetailParticipantAvatar(participant: participants[i]),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _DetailParticipantAvatar extends StatelessWidget {
+  const _DetailParticipantAvatar({required this.participant});
+
+  final CommunityParticipantPreview participant;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = participant.profileImageUrl?.trim();
+    final fallback = ColoredBox(
+      color: AppColors.primarySoft,
+      child: Center(
+        child: Text(
+          participant.displayName.trim().isEmpty
+              ? '?'
+              : participant.displayName.characters.first,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: AppColors.card,
+          shape: BoxShape.circle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: ClipOval(
+            child: imageUrl == null || imageUrl.isEmpty
+                ? fallback
+                : Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => fallback,
+                  ),
+          ),
+        ),
       ),
     );
   }
@@ -276,17 +322,7 @@ class _HostSummary extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Color(host.avatarColor),
-            child: Text(
-              host.name.characters.first,
-              style: const TextStyle(
-                color: AppColors.background,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          _HostAvatar(host: host),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -302,6 +338,43 @@ class _HostSummary extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HostAvatar extends StatelessWidget {
+  const _HostAvatar({required this.host});
+
+  final CommunityHost host;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = host.profileImageUrl?.trim();
+    final fallback = ColoredBox(
+      color: AppColors.primarySoft,
+      child: Center(
+        child: Text(
+          host.name.trim().isEmpty ? '?' : host.name.characters.first,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+
+    return ClipOval(
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: imageUrl == null || imageUrl.isEmpty
+            ? fallback
+            : Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              ),
       ),
     );
   }

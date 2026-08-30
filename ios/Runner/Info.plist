@@ -33,6 +33,10 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>로컬 개발 서버와 토론 데이터를 주고받기 위해 네트워크 접근이 필요합니다.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartVmService._tcp</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

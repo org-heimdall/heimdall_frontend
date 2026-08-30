@@ -11,15 +11,22 @@ class CommunityFilter {
   const CommunityFilter({
     this.category = CommunityCategory.all,
     this.query = '',
+    this.sortOrder = CommunitySortOrder.recommended,
   });
 
   final CommunityCategory category;
   final String query;
+  final CommunitySortOrder sortOrder;
 
-  CommunityFilter copyWith({CommunityCategory? category, String? query}) {
+  CommunityFilter copyWith({
+    CommunityCategory? category,
+    String? query,
+    CommunitySortOrder? sortOrder,
+  }) {
     return CommunityFilter(
       category: category ?? this.category,
       query: query ?? this.query,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 }
@@ -57,6 +64,10 @@ class CommunityFilterNotifier extends Notifier<CommunityFilter> {
     state = state.copyWith(query: query);
   }
 
+  void setSortOrder(CommunitySortOrder sortOrder) {
+    state = state.copyWith(sortOrder: sortOrder);
+  }
+
   void reset() {
     state = const CommunityFilter();
   }
@@ -73,6 +84,7 @@ final communitiesProvider = FutureProvider<List<Community>>((ref) {
   return repository.fetchCommunities(
     category: filter.category,
     query: filter.query,
+    sortOrder: filter.sortOrder,
   );
 });
 

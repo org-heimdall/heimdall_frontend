@@ -43,6 +43,36 @@ void main() {
     );
   });
 
+  testWidgets('switches community sorting between recommended and latest', (
+    tester,
+  ) async {
+    await _pumpHeimdall(tester, authenticated: true);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HeimdallApp)),
+      listen: false,
+    );
+
+    expect(
+      container.read(communitiesProvider).requireValue.first.id,
+      'test-room-1',
+    );
+
+    await tester.tap(find.text('추천순'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('최신순'));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(communityFilterProvider).sortOrder,
+      CommunitySortOrder.latest,
+    );
+    expect(
+      container.read(communitiesProvider).requireValue.first.id,
+      'test-room-5',
+    );
+    expect(find.text('최신순'), findsOneWidget);
+  });
+
   testWidgets('shows community creation form fields', (tester) async {
     await _pumpHeimdall(tester, authenticated: true);
     await tester.pumpAndSettle();
@@ -229,9 +259,9 @@ class TestCommunityRepository implements CommunityRepository {
           status: CommunityStatus.waiting,
           host: const CommunityHost(name: '테스트 호스트', avatarColor: 0xFFC6F9FF),
           rounds: 1,
-          observerCount: 1,
+          observerCount: 5 - index,
           isPublic: true,
-          createdAt: DateTime(2026, 8, 23),
+          createdAt: DateTime(2026, 8, 23 + index),
         ),
       );
 
@@ -241,8 +271,9 @@ class TestCommunityRepository implements CommunityRepository {
   Future<List<Community>> fetchCommunities({
     CommunityCategory category = CommunityCategory.all,
     String query = '',
+    CommunitySortOrder sortOrder = CommunitySortOrder.recommended,
   }) async {
-    return _communities.where((community) {
+    final filtered = _communities.where((community) {
       final matchesCategory =
           category == CommunityCategory.all || community.category == category;
       final normalizedQuery = query.trim().toLowerCase();
@@ -250,6 +281,19 @@ class TestCommunityRepository implements CommunityRepository {
           (normalizedQuery.isEmpty ||
               community.title.toLowerCase().contains(normalizedQuery));
     }).toList();
+    filtered.sort(
+      sortOrder == CommunitySortOrder.latest
+          ? (left, right) => right.createdAt.compareTo(left.createdAt)
+          : (left, right) {
+              final memberCountOrder = right.observerCount.compareTo(
+                left.observerCount,
+              );
+              return memberCountOrder != 0
+                  ? memberCountOrder
+                  : right.createdAt.compareTo(left.createdAt);
+            },
+    );
+    return filtered;
   }
 
   @override

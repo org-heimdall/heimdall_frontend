@@ -100,12 +100,16 @@ class DebateSpeaker {
     required this.displayName,
     required this.score,
     this.profileImageUrl,
+    this.claim = '',
+    this.reasons = const [],
   });
 
   final String id;
   final String displayName;
   final int score;
   final String? profileImageUrl;
+  final String claim;
+  final List<String> reasons;
 }
 
 class DebateDetail {
@@ -122,7 +126,7 @@ class DebateDetail {
     required this.judgingStartedAt,
   });
 
-  static const judgeRetryStaleDuration = Duration(minutes: 5);
+  static const judgeRetryStaleDuration = Duration(seconds: 185);
 
   final String id;
   final String communityId;
@@ -149,6 +153,7 @@ enum DebateChatRealtimeEventType {
   messageCreated,
   turnFinalized,
   debateEnded,
+  processingStage,
   error,
 }
 
@@ -165,6 +170,10 @@ class DebateChatRealtimeEvent {
     this.errorMessage,
     this.endReason,
     this.status,
+    this.processingStage,
+    this.processingStatus,
+    this.processingMessage,
+    this.processingAttempt,
   });
 
   final String id;
@@ -178,4 +187,8 @@ class DebateChatRealtimeEvent {
   final String? errorMessage;
   final String? endReason;
   final String? status;
+  final String? processingStage;
+  final String? processingStatus;
+  final String? processingMessage;
+  final int? processingAttempt;
 }

@@ -4,23 +4,27 @@ import '../../../core/theme/app_colors.dart';
 
 class AppConfirmationDialog extends StatelessWidget {
   const AppConfirmationDialog({
-    required this.icon,
+    this.icon,
+    this.header,
     required this.title,
     required this.description,
     required this.cancelLabel,
     required this.confirmLabel,
     required this.onCancel,
     required this.onConfirm,
+    this.descriptionFontSize = 16,
     super.key,
-  });
+  }) : assert(icon != null || header != null);
 
-  final IconData icon;
+  final IconData? icon;
+  final Widget? header;
   final String title;
   final String description;
   final String cancelLabel;
   final String confirmLabel;
   final VoidCallback onCancel;
   final VoidCallback onConfirm;
+  final double descriptionFontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -38,15 +42,16 @@ class AppConfirmationDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: AppColors.primary, size: 32),
-              ),
+              header ??
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primarySoft,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon!, color: AppColors.primary, size: 32),
+                  ),
               const SizedBox(height: 20),
               Text(
                 title,
@@ -65,7 +70,7 @@ class AppConfirmationDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFFA7B4BF),
-                  fontSize: 16,
+                  fontSize: descriptionFontSize,
                   height: 1.5,
                   fontWeight: FontWeight.w400,
                 ),

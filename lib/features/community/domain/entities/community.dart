@@ -26,14 +26,29 @@ enum CommunityStatus {
   final String label;
 }
 
+enum CommunitySortOrder {
+  recommended('추천순'),
+  latest('최신순');
+
+  const CommunitySortOrder(this.label);
+
+  final String label;
+}
+
 int debateDurationMinutesForRounds(int rounds) => rounds * 6 + 4;
 
 class CommunityHost {
-  const CommunityHost({required this.name, required this.avatarColor, this.id});
+  const CommunityHost({
+    required this.name,
+    required this.avatarColor,
+    this.id,
+    this.profileImageUrl,
+  });
 
   final String? id;
   final String name;
   final int avatarColor;
+  final String? profileImageUrl;
 }
 
 class CommunityMemberSummary {
@@ -57,6 +72,18 @@ class CommunityMemberSummary {
   bool get wantsToDebate => debateIntent == 'OPEN_TO_DEBATE';
 }
 
+class CommunityParticipantPreview {
+  const CommunityParticipantPreview({
+    required this.id,
+    required this.displayName,
+    this.profileImageUrl,
+  });
+
+  final String id;
+  final String displayName;
+  final String? profileImageUrl;
+}
+
 class Community {
   const Community({
     required this.id,
@@ -69,6 +96,7 @@ class Community {
     required this.observerCount,
     required this.isPublic,
     required this.createdAt,
+    this.participantPreviews = const [],
     this.hostClaim = '',
     this.hostReasons = const [],
     this.isOwnedByCurrentUser = false,
@@ -85,6 +113,7 @@ class Community {
   final int observerCount;
   final bool isPublic;
   final DateTime createdAt;
+  final List<CommunityParticipantPreview> participantPreviews;
   final String hostClaim;
   final List<String> hostReasons;
   final bool isOwnedByCurrentUser;

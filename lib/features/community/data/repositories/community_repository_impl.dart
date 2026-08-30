@@ -1,4 +1,5 @@
 import '../../domain/entities/community.dart';
+import '../../domain/entities/community_chat.dart';
 import '../../domain/repositories/community_repository.dart';
 import '../mappers/community_response_mapper.dart';
 import '../remote/community_remote_data_source.dart';
@@ -14,6 +15,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
   Future<List<Community>> fetchCommunities({
     CommunityCategory category = CommunityCategory.all,
     String query = '',
+    CommunitySortOrder sortOrder = CommunitySortOrder.recommended,
   }) async {
     final response = await _remoteDataSource.fetchCommunities();
     _communities
@@ -21,7 +23,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
       ..addAll(_mapper.mapCommunities(response));
 
     final normalizedQuery = query.trim().toLowerCase();
-    return _communities.where((community) {
+    final filtered = _communities.where((community) {
       final matchesCategory =
           category == CommunityCategory.all || community.category == category;
       final matchesQuery =
@@ -30,6 +32,20 @@ class CommunityRepositoryImpl implements CommunityRepository {
           community.topic.toLowerCase().contains(normalizedQuery);
       return matchesCategory && matchesQuery;
     }).toList();
+    filtered.sort(switch (sortOrder) {
+      CommunitySortOrder.recommended => (left, right) {
+        final memberCountOrder = right.observerCount.compareTo(
+          left.observerCount,
+        );
+        return memberCountOrder != 0
+            ? memberCountOrder
+            : right.createdAt.compareTo(left.createdAt);
+      },
+      CommunitySortOrder.latest => (left, right) => right.createdAt.compareTo(
+        left.createdAt,
+      ),
+    });
+    return filtered;
   }
 
   @override
@@ -66,7 +82,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<String> createAndStartDebate({
+  Future<CommunityDebateInvitation> requestDebate({
     required Community community,
     required String opponentMemberId,
   }) async {
@@ -81,7 +97,30 @@ class CommunityRepositoryImpl implements CommunityRepository {
       communityId: community.id,
       opponentMemberId: opponentMemberId,
     );
+    return _mapper.mapDebateInvitation(response);
+  }
+
+  @override
+  Future<String> acceptDebateInvitation({
+    required String communityId,
+    required String invitationId,
+  }) async {
+    final response = await _remoteDataSource.acceptDebateInvitation(
+      communityId: communityId,
+      invitationId: invitationId,
+    );
     return _mapper.mapCreatedDebateId(response);
+  }
+
+  @override
+  Future<void> rejectDebateInvitation({
+    required String communityId,
+    required String invitationId,
+  }) {
+    return _remoteDataSource.rejectDebateInvitation(
+      communityId: communityId,
+      invitationId: invitationId,
+    );
   }
 
   @override

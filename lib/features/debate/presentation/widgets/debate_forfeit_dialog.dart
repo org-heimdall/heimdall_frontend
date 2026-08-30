@@ -17,7 +17,7 @@ class DebateForfeitDialog extends StatelessWidget {
     return AppConfirmationDialog(
       icon: Icons.error_outline_rounded,
       title: '정말 기권하시겠습니까?',
-      description: '이대로 토론장을 나가시면 즉시 패배 처리됩니다.',
+      description: '토론방을 나가시면 즉시 패배 처리됩니다.',
       cancelLabel: '아니오',
       confirmLabel: '나가기',
       onCancel: onCancel,

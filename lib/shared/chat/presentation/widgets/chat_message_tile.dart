@@ -10,6 +10,9 @@ class ChatMessageTile extends StatelessWidget {
     this.avatar,
     this.trailing,
     this.onRetry,
+    this.mineOnLeft = false,
+    this.messageHorizontalOffset = 0,
+    this.messageHorizontalStretch = 1,
     super.key,
   });
 
@@ -18,18 +21,55 @@ class ChatMessageTile extends StatelessWidget {
   final Widget? avatar;
   final Widget? trailing;
   final VoidCallback? onRetry;
+  final bool mineOnLeft;
+  final double messageHorizontalOffset;
+  final double messageHorizontalStretch;
 
   @override
   Widget build(BuildContext context) {
+    if (message.authorId == 'system') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: SizedBox(
+          width: double.infinity,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SizeTransition(sizeFactor: animation, child: child),
+            ),
+            child: Container(
+              key: ValueKey('${message.id}:${message.text}'),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                message.text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final maxMessageWidth = isMine
         ? MediaQuery.sizeOf(context).width - 16 * 2 - 72 - 30
         : MediaQuery.sizeOf(context).width - 16 * 2 - 36 - 8 - 32 - 30;
-    final messageBody = ConstrainedBox(
+    final messageBodyContent = ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxMessageWidth),
       child: Column(
-        crossAxisAlignment: isMine
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: mineOnLeft
+            ? (isMine ? CrossAxisAlignment.start : CrossAxisAlignment.end)
+            : (isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start),
         children: [
           if (!isMine) ...[
             Text(
@@ -86,15 +126,32 @@ class ChatMessageTile extends StatelessWidget {
       ),
     );
 
+    final messageBody = Transform(
+      alignment: Alignment.centerLeft,
+      transform: Matrix4.identity()
+        ..translateByDouble(messageHorizontalOffset, 0, 0, 1)
+        ..scaleByDouble(messageHorizontalStretch, 1, 1, 1),
+      child: messageBodyContent,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: isMine
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+            ? (mineOnLeft ? MainAxisAlignment.start : MainAxisAlignment.end)
+            : (mineOnLeft ? MainAxisAlignment.end : MainAxisAlignment.start),
         children: [
-          if (!isMine)
+          if (!isMine && mineOnLeft)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                messageBody,
+                if (avatar != null) ...[const SizedBox(width: 8), avatar!],
+              ],
+            )
+          else if (!isMine)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -107,7 +164,13 @@ class ChatMessageTile extends StatelessWidget {
             messageBody,
           if (!isMine && trailing != null) ...[
             const SizedBox(width: 4),
-            trailing!,
+            Transform(
+              alignment: Alignment.centerLeft,
+              transform: Matrix4.identity()
+                ..translateByDouble(messageHorizontalOffset, 0, 0, 1)
+                ..scaleByDouble(messageHorizontalStretch, 1, 1, 1),
+              child: trailing!,
+            ),
           ],
         ],
       ),

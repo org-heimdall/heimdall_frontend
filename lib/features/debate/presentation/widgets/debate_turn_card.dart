@@ -106,7 +106,7 @@ class DebateTimerPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isMyTurn ? '내 차례입니다. 1,000자 안에서 발언하세요.' : '상대 발언을 기다리는 중입니다.',
+                  isMyTurn ? '내 차례입니다. 500자 안에서 발언하세요.' : '상대 발언을 기다리는 중입니다.',
                   style: const TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 13,
