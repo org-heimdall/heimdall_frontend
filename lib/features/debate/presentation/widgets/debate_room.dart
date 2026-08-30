@@ -69,7 +69,7 @@ bool _isFinalizedStatus(String status) => switch (status) {
 };
 
 class _DebateRoomState extends ConsumerState<DebateRoom> {
-  static const _fallbackMaxTurnCharacterCount = 1000;
+  static const _fallbackMaxTurnCharacterCount = 500;
 
   final _messageController = TextEditingController();
   final _messageFocusNode = FocusNode();
@@ -96,6 +96,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
   bool _forfeitDialogVisible = false;
   bool _isRetryingJudge = false;
   bool _processingDialogVisible = false;
+  bool _processingDialogDismissed = false;
   Route<void>? _processingDialogRoute;
   ValueNotifier<_DebateProcessingState>? _processingDialogNotifier;
   ValueNotifier<int>? _progressStepNotifier;
@@ -883,7 +884,14 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     final processing =
         detail.status == 'DEBATE_FINALIZED' || detail.status == 'JUDGING';
     if (!processing) {
+      _processingDialogDismissed = false;
       _dismissProcessingDialog();
+      return;
+    }
+
+    // Participants may dismiss the processing dialog to inspect the chat
+    // timeline while the server continues processing in the background.
+    if (_processingDialogDismissed) {
       return;
     }
 
@@ -905,12 +913,14 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
       showDialog<void>(
         context: context,
         useRootNavigator: true,
-        barrierDismissible: false,
+        barrierDismissible: true,
         barrierColor: Colors.black.withValues(alpha: 0.8),
         builder: (dialogContext) {
           _processingDialogRoute = ModalRoute.of(dialogContext);
           return PopScope(
-            canPop: false,
+            // Allow the dismissible barrier to close the dialog and reveal
+            // the finalized chat timeline.
+            canPop: true,
             child: ValueListenableBuilder<_DebateProcessingState>(
               valueListenable: newNotifier,
               builder: (context, dialogState, child) {
@@ -924,7 +934,12 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
             ),
           );
         },
-      ).whenComplete(() {
+      ).then((_) {
+        if (_debateDetail?.status == 'DEBATE_FINALIZED' ||
+            _debateDetail?.status == 'JUDGING') {
+          _processingDialogDismissed = true;
+        }
+      }).whenComplete(() {
         if (_processingDialogNotifier == newNotifier) {
           _processingDialogNotifier = null;
           _processingDialogRoute = null;

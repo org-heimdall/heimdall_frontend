@@ -9,6 +9,32 @@ class CommunityResponseMapper {
     final hostName = hostJson is Map<String, dynamic>
         ? hostJson['displayName'] as String? ?? '호스트'
         : '호스트';
+    final participantPreviews =
+        (json['participantPreviews'] as List<dynamic>?)
+            ?.whereType<Map<String, dynamic>>()
+            .map(
+              (item) => CommunityParticipantPreview(
+                id: item['id'] as String? ?? '',
+                displayName: item['displayName'] as String? ?? '멤버',
+                profileImageUrl: item['profileImageUrl'] as String?,
+              ),
+            )
+            .where((item) => item.id.isNotEmpty)
+            .toList() ??
+        const [];
+    final hostId = hostJson is Map<String, dynamic>
+        ? hostJson['id'] as String?
+        : null;
+    final hostProfileImageUrl =
+        (hostJson is Map<String, dynamic>
+            ? hostJson['profileImageUrl'] as String?
+            : null) ??
+        (participantPreviews.where((item) => item.id == hostId).isEmpty
+            ? null
+            : participantPreviews
+                  .where((item) => item.id == hostId)
+                  .first
+                  .profileImageUrl);
 
     return Community(
       id: json['id'] as String,
@@ -19,7 +45,8 @@ class CommunityResponseMapper {
       host: CommunityHost(
         id: hostJson is Map<String, dynamic> ? hostJson['id'] as String? : null,
         name: hostName,
-        avatarColor: 0xFFC6F9FF,
+        avatarColor: 0xFFC9D6FF,
+        profileImageUrl: hostProfileImageUrl,
       ),
       rounds: (json['rounds'] as num?)?.toInt() ?? 1,
       observerCount: (json['memberCount'] as num?)?.toInt() ?? 0,
@@ -27,6 +54,7 @@ class CommunityResponseMapper {
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.now(),
+      participantPreviews: participantPreviews,
       hostClaim: json['hostClaim'] as String? ?? '',
       hostReasons:
           (json['hostReasons'] as List<dynamic>?)

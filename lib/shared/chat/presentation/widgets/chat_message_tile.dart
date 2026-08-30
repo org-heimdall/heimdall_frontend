@@ -11,6 +11,8 @@ class ChatMessageTile extends StatelessWidget {
     this.trailing,
     this.onRetry,
     this.mineOnLeft = false,
+    this.messageHorizontalOffset = 0,
+    this.messageHorizontalStretch = 1,
     super.key,
   });
 
@@ -20,13 +22,15 @@ class ChatMessageTile extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onRetry;
   final bool mineOnLeft;
+  final double messageHorizontalOffset;
+  final double messageHorizontalStretch;
 
   @override
   Widget build(BuildContext context) {
     final maxMessageWidth = isMine
         ? MediaQuery.sizeOf(context).width - 16 * 2 - 72 - 30
         : MediaQuery.sizeOf(context).width - 16 * 2 - 36 - 8 - 32 - 30;
-    final messageBody = ConstrainedBox(
+    final messageBodyContent = ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxMessageWidth),
       child: Column(
         crossAxisAlignment: mineOnLeft
@@ -88,6 +92,14 @@ class ChatMessageTile extends StatelessWidget {
       ),
     );
 
+    final messageBody = Transform(
+      alignment: Alignment.centerLeft,
+      transform: Matrix4.identity()
+        ..translateByDouble(messageHorizontalOffset, 0, 0, 1)
+        ..scaleByDouble(messageHorizontalStretch, 1, 1, 1),
+      child: messageBodyContent,
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       child: Row(
@@ -118,7 +130,13 @@ class ChatMessageTile extends StatelessWidget {
             messageBody,
           if (!isMine && trailing != null) ...[
             const SizedBox(width: 4),
-            trailing!,
+            Transform(
+              alignment: Alignment.centerLeft,
+              transform: Matrix4.identity()
+                ..translateByDouble(messageHorizontalOffset, 0, 0, 1)
+                ..scaleByDouble(messageHorizontalStretch, 1, 1, 1),
+              child: trailing!,
+            ),
           ],
         ],
       ),

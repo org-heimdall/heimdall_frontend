@@ -214,19 +214,11 @@ class _WinnerProfile extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
+        ClipOval(
           key: const ValueKey('debate-result-winner-avatar'),
-          width: 58,
-          height: 58,
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFFFFD54F), width: 2),
-            boxShadow: const [
-              BoxShadow(color: Color(0x55FFD54F), blurRadius: 8),
-            ],
-          ),
-          child: ClipOval(
+          child: SizedBox(
+            width: 58,
+            height: 58,
             child: imageUrl == null || imageUrl.isEmpty
                 ? fallback
                 : Image.network(

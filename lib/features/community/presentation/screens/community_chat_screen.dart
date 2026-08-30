@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -202,31 +203,45 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
                           else if (message is CommunityDebateTimeoutMessage)
                             _CommunitySystemNotice(message: message.text)
                           else
-                            ChatMessageTile(
-                              message: message,
-                              isMine:
-                                  message.authorId == 'me' ||
-                                  message.authorId == currentMember?.id,
-                              avatar: _ChatAvatar(
-                                userName: message.authorName,
-                                imageUrl:
-                                    profileImageByMemberId[message.authorId],
-                                onTap: () =>
-                                    _showUserProfileByUserId(message.authorId),
+                            _SwipeToProfile(
+                              enabled:
+                                  message.authorId.isNotEmpty &&
+                                  message.authorId != 'system' &&
+                                  message.authorId != 'me' &&
+                                  message.authorId != currentMember?.id,
+                              onTriggered: () {
+                                HapticFeedback.lightImpact();
+                                _showUserProfileByUserId(message.authorId);
+                              },
+                              builder: (offset, stretch) => ChatMessageTile(
+                                message: message,
+                                isMine:
+                                    message.authorId == 'me' ||
+                                    message.authorId == currentMember?.id,
+                                avatar: _ChatAvatar(
+                                  userName: message.authorName,
+                                  imageUrl:
+                                      profileImageByMemberId[message.authorId],
+                                  onTap: () => _showUserProfileByUserId(
+                                    message.authorId,
+                                  ),
+                                ),
+                                trailing:
+                                    widget.viewerRole ==
+                                            CommunityChatViewerRole.host &&
+                                        currentMember != null &&
+                                        message.authorId != currentMember.id
+                                    ? _NominateButton(
+                                        onTap: () => _confirmAndStartDebate(
+                                          message.authorId,
+                                          opponentName: message.authorName,
+                                        ),
+                                      )
+                                    : null,
+                                onRetry: () => _retryMessage(message),
+                                messageHorizontalOffset: offset,
+                                messageHorizontalStretch: stretch,
                               ),
-                              trailing:
-                                  widget.viewerRole ==
-                                          CommunityChatViewerRole.host &&
-                                      currentMember != null &&
-                                      message.authorId != currentMember.id
-                                  ? _NominateButton(
-                                      onTap: () => _confirmAndStartDebate(
-                                        message.authorId,
-                                        opponentName: message.authorName,
-                                      ),
-                                    )
-                                  : null,
-                              onRetry: () => _retryMessage(message),
                             ),
                       ],
                     ),
@@ -1751,6 +1766,68 @@ class _DebaterPreview extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SwipeToProfile extends StatefulWidget {
+  const _SwipeToProfile({
+    required this.builder,
+    required this.onTriggered,
+    required this.enabled,
+  });
+
+  final Widget Function(double offset, double stretch) builder;
+  final VoidCallback onTriggered;
+  final bool enabled;
+
+  @override
+  State<_SwipeToProfile> createState() => _SwipeToProfileState();
+}
+
+class _SwipeToProfileState extends State<_SwipeToProfile>
+    with SingleTickerProviderStateMixin {
+  static const _maxOffset = 44.0;
+  static const _triggerOffset = 28.0;
+
+  late final AnimationController _returnController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+    lowerBound: 0,
+    upperBound: _maxOffset,
+  )..addListener(() => setState(() {}));
+
+  double get _offset => _returnController.value;
+
+  @override
+  void dispose() {
+    _returnController.dispose();
+    super.dispose();
+  }
+
+  void _update(DragUpdateDetails details) {
+    if (!widget.enabled) return;
+    _returnController.stop();
+    _returnController.value = (_returnController.value + details.delta.dx)
+        .clamp(0, _maxOffset);
+  }
+
+  void _end(DragEndDetails details) {
+    if (!widget.enabled) return;
+    final triggered =
+        _offset >= _triggerOffset || (details.primaryVelocity ?? 0) > 100;
+    if (triggered) widget.onTriggered();
+    _returnController.animateTo(0, curve: Curves.easeOutBack);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stretch = 1 + (_offset / _maxOffset) * 0.06;
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragUpdate: _update,
+      onHorizontalDragEnd: _end,
+      child: widget.builder(_offset, stretch),
     );
   }
 }
