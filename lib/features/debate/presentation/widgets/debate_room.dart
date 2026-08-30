@@ -87,6 +87,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
   bool _isFinalizingTurn = false;
   bool _hasReceivedSnapshot = false;
   bool _isDebateFinalized = false;
+  String? _processingStage;
   String? _pendingFinalizeCommandId;
   DebateChatCurrentTurn? _serverCurrentTurn;
   DebateDetail? _debateDetail;
@@ -97,6 +98,7 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
   bool _isRetryingJudge = false;
   bool _processingDialogVisible = false;
   bool _processingDialogDismissed = false;
+  String? _lastProcessingStatus;
   Route<void>? _processingDialogRoute;
   ValueNotifier<_DebateProcessingState>? _processingDialogNotifier;
   ValueNotifier<int>? _progressStepNotifier;
@@ -571,6 +573,29 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
       case DebateChatRealtimeEventType.debateEnded:
         _handleDebateEnded(event.endReason);
         return;
+      case DebateChatRealtimeEventType.processingStage:
+        if (event.processingStage != null &&
+            event.processingMessage != null) {
+          _processingStage = event.processingStage;
+          _syncProgressStep();
+          final isTerminal = event.processingStatus == 'COMPLETED' ||
+              event.processingStatus == 'FAILED';
+          final messageId = isTerminal
+              ? 'processing:${widget.debateId}:${event.processingStage}:result:${event.processingAttempt ?? DateTime.now().microsecondsSinceEpoch}'
+              : 'processing:${widget.debateId}:${event.processingStage}:active';
+          _timeline.upsert(
+            ChatMessage(
+              id: messageId,
+              scopeId: widget.debateId,
+              authorId: 'system',
+              authorName: '헤임달',
+              text: event.processingMessage!,
+              createdAt: DateTime.now(),
+            ),
+          );
+          _scrollToLatestMessage();
+        }
+        return;
       case DebateChatRealtimeEventType.error:
         _handleRealtimeError(event);
         return;
@@ -820,6 +845,9 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     if (isNewTurn) {
       _currentDraftCharacterCounts.clear();
       _messageController.clear();
+      if (turn != null) {
+        _processingStage = null;
+      }
     }
     if (mounted) {
       setState(() {
@@ -884,10 +912,20 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     final processing =
         detail.status == 'DEBATE_FINALIZED' || detail.status == 'JUDGING';
     if (!processing) {
+      _lastProcessingStatus = null;
       _processingDialogDismissed = false;
       _dismissProcessingDialog();
       return;
     }
+
+    // Closing the preparation dialog must not suppress the later AI judging
+    // dialog. Reset only on the actual DEBATE_FINALIZED -> JUDGING transition
+    // so polling does not reopen a dialog that the user dismissed in-place.
+    if (_lastProcessingStatus == 'DEBATE_FINALIZED' &&
+        detail.status == 'JUDGING') {
+      _processingDialogDismissed = false;
+    }
+    _lastProcessingStatus = detail.status;
 
     // Participants may dismiss the processing dialog to inspect the chat
     // timeline while the server continues processing in the background.
@@ -1147,8 +1185,15 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     final postDebateStartIndex = closingStartIndex + 2;
 
     if (turn == null) {
+      final processingStage = _processingStage;
+      if (processingStage == 'JUDGE') {
+        return postDebateStartIndex + 2;
+      }
+      if (processingStage == 'ANALYZER' || processingStage == 'FACT_CHECK') {
+        return postDebateStartIndex + 1;
+      }
       return switch (_debateDetail?.status) {
-        'DEBATE_FINALIZED' => postDebateStartIndex + 1,
+        'DEBATE_FINALIZED' => postDebateStartIndex,
         'JUDGING' || 'COMPLETED' => postDebateStartIndex + 2,
         _ => postDebateStartIndex,
       };

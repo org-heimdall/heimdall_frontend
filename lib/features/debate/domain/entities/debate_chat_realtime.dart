@@ -153,6 +153,7 @@ enum DebateChatRealtimeEventType {
   messageCreated,
   turnFinalized,
   debateEnded,
+  processingStage,
   error,
 }
 
@@ -169,6 +170,10 @@ class DebateChatRealtimeEvent {
     this.errorMessage,
     this.endReason,
     this.status,
+    this.processingStage,
+    this.processingStatus,
+    this.processingMessage,
+    this.processingAttempt,
   });
 
   final String id;
@@ -182,4 +187,8 @@ class DebateChatRealtimeEvent {
   final String? errorMessage;
   final String? endReason;
   final String? status;
+  final String? processingStage;
+  final String? processingStatus;
+  final String? processingMessage;
+  final int? processingAttempt;
 }

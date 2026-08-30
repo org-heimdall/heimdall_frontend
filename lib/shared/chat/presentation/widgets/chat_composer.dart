@@ -118,7 +118,7 @@ class _ChatComposerState extends State<ChatComposer> {
                           },
                           style: const TextStyle(
                             color: AppColors.textSecondary,
-                            fontSize: 14,
+                            fontSize: 15,
                             height: 1.45,
                           ),
                           decoration: InputDecoration(
@@ -133,7 +133,7 @@ class _ChatComposerState extends State<ChatComposer> {
                             hintMaxLines: 1,
                             hintStyle: const TextStyle(
                               color: AppColors.textMuted,
-                              fontSize: 14,
+                              fontSize: 15,
                               height: 1.45,
                             ),
                           ),

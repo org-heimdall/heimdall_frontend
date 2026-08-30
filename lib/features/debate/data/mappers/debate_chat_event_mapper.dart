@@ -30,6 +30,10 @@ class DebateChatEventMapper {
       errorMessage: _optionalString(json, 'message'),
       endReason: _optionalString(json, 'reason'),
       status: _optionalString(json, 'status'),
+      processingStage: _optionalString(json, 'stage'),
+      processingStatus: _optionalString(json, 'status'),
+      processingMessage: _optionalString(json, 'message'),
+      processingAttempt: json['attempt'] is num ? (json['attempt'] as num).toInt() : null,
     );
   }
 
@@ -40,6 +44,7 @@ class DebateChatEventMapper {
     'debate.turn.message.created' => DebateChatRealtimeEventType.messageCreated,
     'debate.turn.finalized' => DebateChatRealtimeEventType.turnFinalized,
     'debate.ended' => DebateChatRealtimeEventType.debateEnded,
+    'debate.processing.stage' => DebateChatRealtimeEventType.processingStage,
     'error' => DebateChatRealtimeEventType.error,
     _ => throw FormatException('지원하지 않는 토론 이벤트입니다: $value'),
   };
