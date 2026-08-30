@@ -163,7 +163,7 @@ class _DebateResultPopupBody extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0x0022282D), AppColors.surface],
+                  colors: [Color(0x0022282D), AppColors.background],
                 ),
               ),
               child: SizedBox(height: 40),
@@ -602,6 +602,16 @@ class _PopupFactCheckCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final badgeColor = switch (result.status) {
+      FactCheckStatus.supported => AppColors.primarySoft,
+      FactCheckStatus.partiallySupported => const Color(0xFFB0A064),
+      FactCheckStatus.contradicted ||
+      FactCheckStatus.notVerifiable ||
+      FactCheckStatus.outdated => AppColors.con,
+      FactCheckStatus.insufficientEvidence => AppColors.textMuted,
+      FactCheckStatus.unknown => AppColors.textMuted,
+    };
+
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
@@ -639,7 +649,7 @@ class _PopupFactCheckCard extends StatelessWidget {
                 key: ValueKey('fact-check-status-${result.id}'),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primarySoft,
+                  color: badgeColor,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(

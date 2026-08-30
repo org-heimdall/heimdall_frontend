@@ -12,6 +12,7 @@ class AppConfirmationDialog extends StatelessWidget {
     required this.confirmLabel,
     required this.onCancel,
     required this.onConfirm,
+    this.descriptionFontSize = 16,
     super.key,
   }) : assert(icon != null || header != null);
 
@@ -23,6 +24,7 @@ class AppConfirmationDialog extends StatelessWidget {
   final String confirmLabel;
   final VoidCallback onCancel;
   final VoidCallback onConfirm;
+  final double descriptionFontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +70,7 @@ class AppConfirmationDialog extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFFA7B4BF),
-                  fontSize: 16,
+                  fontSize: descriptionFontSize,
                   height: 1.5,
                   fontWeight: FontWeight.w400,
                 ),

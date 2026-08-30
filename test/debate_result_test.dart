@@ -59,6 +59,8 @@ void main() {
         FactCheckResult(
           id: 'result-id',
           componentId: 'component-id',
+          speakerId: 'side-a',
+          speakerSide: 'SIDE_A',
           claim: '검증된 주장',
           status: FactCheckStatus.partiallySupported,
           reason: '일부 자료만 주장을 뒷받침합니다.',
@@ -77,9 +79,24 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: DebateResultScreen(community: _community, result: result),
+        home: DebateResultScreen(
+          community: _community,
+          result: result,
+          detail: _detail,
+        ),
       ),
     );
+
+    expect(find.text('테스트 토론'), findsNothing);
+    expect(find.text('주 4일제를 도입해야 합니다.'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('debate-result-winner-avatar')),
+      findsOneWidget,
+    );
+    expect(find.text('찬성 측'), findsNothing);
+    expect(find.text('테스트 주제'), findsNothing);
+    expect(find.text('찬성 참여자'), findsWidgets);
+    expect(find.text('반대 참여자'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -800));
     await tester.pumpAndSettle();
 
@@ -87,7 +104,14 @@ void main() {
     expect(find.text('검증된 주장'), findsOneWidget);
     expect(find.text('일부 자료만 주장을 뒷받침합니다.'), findsOneWidget);
     expect(find.text('검증 기관 · 검증 보고서'), findsOneWidget);
-    expect(find.text('https://example.com/report'), findsOneWidget);
+    expect(find.text('https://example.com/report'), findsNothing);
+    expect(find.text('찬성 참여자'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('result-fact-check-speaker-result-id')),
+      findsOneWidget,
+    );
+    expect(find.text('강점'), findsNothing);
+    expect(find.text('약점'), findsNothing);
   });
 
   testWidgets('returns to the community chat after confirming the result', (
@@ -98,8 +122,11 @@ void main() {
       routes: [
         GoRoute(
           path: '/communities/:id/debate/result',
-          builder: (context, state) =>
-              DebateResultScreen(community: _community, result: _result),
+          builder: (context, state) => DebateResultScreen(
+            community: _community,
+            result: _result,
+            detail: _detail,
+          ),
         ),
         GoRoute(
           path: '/communities/:id/chat',
@@ -157,7 +184,7 @@ void main() {
         (bottomFade.decoration as BoxDecoration).gradient! as LinearGradient;
     expect(bottomFadeGradient.colors, const [
       Color(0x0022282D),
-      AppColors.surface,
+      AppColors.background,
     ]);
     final winnerBadge = tester.getRect(
       find.byKey(const ValueKey('observer-result-winner-badge')),
@@ -237,6 +264,49 @@ void main() {
     await tester.tap(find.byTooltip('닫기'));
     expect(closed, isTrue);
   });
+
+  testWidgets('uses status-specific fact-check badge colors in the popup', (
+    tester,
+  ) async {
+    const expectedColors = <FactCheckStatus, Color>{
+      FactCheckStatus.supported: AppColors.primarySoft,
+      FactCheckStatus.partiallySupported: Color(0xFFB0A064),
+      FactCheckStatus.insufficientEvidence: AppColors.textMuted,
+      FactCheckStatus.contradicted: AppColors.con,
+      FactCheckStatus.notVerifiable: AppColors.con,
+      FactCheckStatus.outdated: AppColors.con,
+    };
+
+    for (final entry in expectedColors.entries) {
+      final debateId = 'popup-debate-${entry.key.name}';
+      await tester.pumpWidget(
+        ProviderScope(
+          key: ValueKey(debateId),
+          overrides: [
+            debateResultProvider(
+              debateId,
+            ).overrideWith((ref) async => _popupResultWithStatus(entry.key)),
+            debateDetailProvider(debateId).overrideWith((ref) async => _detail),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: DebateResultPopup(debateId: debateId, onClose: () {}),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final badge = tester.widget<Container>(
+        find.byKey(const ValueKey('fact-check-status-fact-id')),
+      );
+      expect(
+        (badge.decoration! as BoxDecoration).color,
+        entry.value,
+        reason: 'Unexpected badge color for ${entry.key}',
+      );
+    }
+  });
 }
 
 final _popupResult = DebateResult(
@@ -263,6 +333,33 @@ final _popupResult = DebateResult(
   ],
   feedback: '개선 피드백',
 );
+
+DebateResult _popupResultWithStatus(FactCheckStatus status) {
+  return DebateResult(
+    winner: DebateWinner.pro,
+    scores: const [
+      DebateScore(side: DebateSide.pro, score: 82, summary: '찬성 요약'),
+      DebateScore(side: DebateSide.con, score: 71, summary: '반대 요약'),
+    ],
+    reason: '판정 근거',
+    strengths: const [],
+    weaknesses: const [],
+    factChecks: [
+      FactCheckResult(
+        id: 'fact-id',
+        componentId: 'component-id',
+        speakerId: 'side-a',
+        speakerSide: 'SIDE_A',
+        claim: '검증된 주장',
+        status: status,
+        reason: '팩트체크 판정 근거',
+        sources: const [],
+        checkedAt: DateTime.utc(2026, 8, 23),
+      ),
+    ],
+    feedback: '개선 피드백',
+  );
+}
 
 final _result = DebateResult(
   winner: DebateWinner.draw,

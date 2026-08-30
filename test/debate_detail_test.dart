@@ -23,7 +23,7 @@ void main() {
     );
   }
 
-  test('judge retry becomes available after five stale minutes', () {
+  test('judge retry becomes available after 185 seconds', () {
     final judgingStartedAt = DateTime.utc(2026, 8, 11, 3);
     final debate = detail(
       status: 'JUDGING',
@@ -32,12 +32,14 @@ void main() {
 
     expect(
       debate.canRetryJudgeAt(
-        judgingStartedAt.add(const Duration(minutes: 4, seconds: 59)),
+        judgingStartedAt.add(const Duration(seconds: 184)),
       ),
       isFalse,
     );
     expect(
-      debate.canRetryJudgeAt(judgingStartedAt.add(const Duration(minutes: 5))),
+      debate.canRetryJudgeAt(
+        judgingStartedAt.add(const Duration(seconds: 185)),
+      ),
       isTrue,
     );
   });

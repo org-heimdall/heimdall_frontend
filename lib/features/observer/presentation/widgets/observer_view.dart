@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class ObserverView extends StatefulWidget {
@@ -40,6 +39,21 @@ class _ObserverViewState extends State<ObserverView> {
 
   Offset? _position;
   double _panelHeight = _initialHeight;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void didUpdateWidget(covariant ObserverView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.items.length > oldWidget.items.length) {
+      _scrollToLatestItem();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -208,6 +222,7 @@ class _ObserverViewState extends State<ObserverView> {
     }
 
     return ListView.separated(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(11, 4, 23, 8),
       itemCount: widget.items.length,
       separatorBuilder: (context, index) => const SizedBox(height: 22),
@@ -219,6 +234,17 @@ class _ObserverViewState extends State<ObserverView> {
         );
       },
     );
+  }
+
+  void _scrollToLatestItem() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   Offset _clampPosition(
@@ -247,7 +273,6 @@ class ObserverCommentItem {
     required this.dislikes,
     this.isHost = false,
     this.avatarUrl,
-    this.avatarAsset,
   });
 
   final String? turnId;
@@ -257,7 +282,6 @@ class ObserverCommentItem {
   final int dislikes;
   final bool isHost;
   final String? avatarUrl;
-  final String? avatarAsset;
 }
 
 enum ObserverVoteType { like, dislike }
@@ -472,27 +496,48 @@ class _ObserverAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallbackAsset =
-        item.avatarAsset ??
-        (item.isHost ? AppAssets.avatarBlue : AppAssets.avatarRed);
-    final avatarUrl = item.avatarUrl;
+    final avatarUrl = item.avatarUrl?.trim();
 
-    if (avatarUrl == null || avatarUrl.isEmpty) {
-      return Image.asset(
-        fallbackAsset,
-        width: 36,
-        height: 36,
-        fit: BoxFit.cover,
-      );
-    }
-
-    return Image.network(
-      avatarUrl,
+    return SizedBox(
       width: 36,
       height: 36,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) =>
-          Image.asset(fallbackAsset, width: 36, height: 36, fit: BoxFit.cover),
+      child: avatarUrl == null || avatarUrl.isEmpty
+          ? _ObserverAvatarFallback(item: item)
+          : Image.network(
+              avatarUrl,
+              width: 36,
+              height: 36,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (_, _, _) => _ObserverAvatarFallback(item: item),
+            ),
+    );
+  }
+}
+
+class _ObserverAvatarFallback extends StatelessWidget {
+  const _ObserverAvatarFallback({required this.item});
+
+  final ObserverCommentItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = item.userName.trim();
+    final initial = normalizedName.isEmpty
+        ? '?'
+        : normalizedName.characters.first;
+    return ColoredBox(
+      color: AppColors.primarySoft,
+      child: Center(
+        child: Text(
+          initial,
+          style: TextStyle(
+            color: AppColors.primary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

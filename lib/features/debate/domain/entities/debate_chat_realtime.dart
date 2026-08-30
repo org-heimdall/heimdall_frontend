@@ -126,7 +126,7 @@ class DebateDetail {
     required this.judgingStartedAt,
   });
 
-  static const judgeRetryStaleDuration = Duration(minutes: 5);
+  static const judgeRetryStaleDuration = Duration(seconds: 185);
 
   final String id;
   final String communityId;

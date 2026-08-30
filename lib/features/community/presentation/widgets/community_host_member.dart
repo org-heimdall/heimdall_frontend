@@ -314,7 +314,6 @@ class _CurrentMemberAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = profileImageUrl?.trim();
-
     return ClipOval(
       child: SizedBox(
         width: 80,
@@ -324,6 +323,7 @@ class _CurrentMemberAvatar extends StatelessWidget {
             : Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
+                alignment: Alignment.center,
                 errorBuilder: (_, _, _) => _AvatarFallback(userName: userName),
               ),
       ),
@@ -738,12 +738,41 @@ class _MemberListAvatar extends StatelessWidget {
       ),
       child: ClipOval(
         child: normalizedUrl == null || normalizedUrl.isEmpty
-            ? _AvatarFallback(userName: name)
+            ? _MemberAvatarFallback(userName: name)
             : Image.network(
                 normalizedUrl,
+                width: 36,
+                height: 36,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _AvatarFallback(userName: name),
+                alignment: Alignment.center,
+                errorBuilder: (_, _, _) =>
+                    _MemberAvatarFallback(userName: name),
               ),
+      ),
+    );
+  }
+}
+
+class _MemberAvatarFallback extends StatelessWidget {
+  const _MemberAvatarFallback({required this.userName});
+
+  final String userName;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = userName.trim();
+    return ColoredBox(
+      color: AppColors.primarySoft,
+      child: Center(
+        child: Text(
+          normalizedName.isEmpty ? '?' : normalizedName.characters.first,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 15,
+            height: 1.2,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

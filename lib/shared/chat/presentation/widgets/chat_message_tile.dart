@@ -10,6 +10,7 @@ class ChatMessageTile extends StatelessWidget {
     this.avatar,
     this.trailing,
     this.onRetry,
+    this.mineOnLeft = false,
     super.key,
   });
 
@@ -18,6 +19,7 @@ class ChatMessageTile extends StatelessWidget {
   final Widget? avatar;
   final Widget? trailing;
   final VoidCallback? onRetry;
+  final bool mineOnLeft;
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +29,9 @@ class ChatMessageTile extends StatelessWidget {
     final messageBody = ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxMessageWidth),
       child: Column(
-        crossAxisAlignment: isMine
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment: mineOnLeft
+            ? (isMine ? CrossAxisAlignment.start : CrossAxisAlignment.end)
+            : (isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start),
         children: [
           if (!isMine) ...[
             Text(
@@ -91,10 +93,19 @@ class ChatMessageTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: isMine
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+            ? (mineOnLeft ? MainAxisAlignment.start : MainAxisAlignment.end)
+            : (mineOnLeft ? MainAxisAlignment.end : MainAxisAlignment.start),
         children: [
-          if (!isMine)
+          if (!isMine && mineOnLeft)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                messageBody,
+                if (avatar != null) ...[const SizedBox(width: 8), avatar!],
+              ],
+            )
+          else if (!isMine)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,

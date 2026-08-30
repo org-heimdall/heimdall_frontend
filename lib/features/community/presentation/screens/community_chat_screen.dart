@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/assets/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/community_chat.dart';
 import '../../domain/entities/community.dart';
@@ -53,6 +52,10 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   bool _didCheckInitialOpinion = false;
   String? _visibleDebateInvitationId;
   String? _visibleOutgoingDebateInvitationId;
+  Route<void>? _observerDialogRoute;
+  Timer? _rejectedToastTimer;
+  bool _showRejectedToast = false;
+  String _rejectedToastMessage = '상대방이 토론 요청을 거부했어요.';
 
   @override
   void initState() {
@@ -67,6 +70,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     _timeline.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    _rejectedToastTimer?.cancel();
     super.dispose();
   }
 
@@ -115,6 +119,9 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     };
     final messageHistory = messageHistoryAsync.asData?.value;
     final opinionHistory = opinionHistoryAsync.asData?.value;
+    final myOpinion = currentMember == null
+        ? null
+        : _findMemberOpinion(opinionHistory, currentMember.id);
     final visibleMessages = _orderedMessagesWithHistory(
       messageHistory ?? const <ChatMessage>[],
       opinionHistory ?? const <ChatMessage>[],
@@ -154,97 +161,106 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: Stack(
           children: [
-            _WatchRoomHeader(
-              community: widget.community,
-              activeDebate: activeDebate,
-              viewerRole: widget.viewerRole,
-              onBack: _handleBack,
-              onTitleTap: _showDebateInfo,
-              onWatch: _showObserverView,
-              onMore: () => _showCommunityMembers(),
-            ),
-            Expanded(
-              child: ColoredBox(
-                color: AppColors.surface,
-                child: ListView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  children: [
-                    for (final message in visibleMessages)
-                      if (message is CommunityOpinionMessage)
-                        _DiscussionGuide(
-                          message: message,
-                          onStatementTap: () =>
-                              _showUserProfileByUserId(message.authorId),
-                        )
-                      else if (message is CommunityDebateStartedMessage)
-                        _CommunitySystemNotice(message: message.text)
-                      else if (message is CommunityDebateResultMessage)
-                        _CommunitySystemNotice(
-                          message: message.text,
-                          actionLabel: '토론결과보기',
-                          onAction: () =>
-                              _showDebateResultPopup(message.debateId),
-                        )
-                      else if (message is CommunityDebateForfeitMessage)
-                        _CommunitySystemNotice(message: message.text)
-                      else if (message is CommunityDebateTimeoutMessage)
-                        _CommunitySystemNotice(message: message.text)
-                      else
-                        ChatMessageTile(
-                          message: message,
-                          isMine:
-                              message.authorId == 'me' ||
-                              message.authorId == currentMember?.id,
-                          avatar: _ChatAvatar(
-                            userName: message.authorName,
-                            imageUrl: profileImageByMemberId[message.authorId],
-                            accent: message.accentAvatar,
-                            onTap: () =>
-                                _showUserProfileByUserId(message.authorId),
-                          ),
-                          trailing:
-                              widget.viewerRole ==
-                                      CommunityChatViewerRole.host &&
-                                  currentMember != null &&
-                                  message.authorId != currentMember.id
-                              ? _NominateButton(
-                                  onTap: () => _confirmAndStartDebate(
-                                    message.authorId,
-                                    opponentName: message.authorName,
-                                  ),
-                                )
-                              : null,
-                          onRetry: () => _retryMessage(message),
-                        ),
+            Column(
+              children: [
+                _WatchRoomHeader(
+                  community: widget.community,
+                  activeDebate: activeDebate,
+                  viewerRole: widget.viewerRole,
+                  onBack: _handleBack,
+                  onTitleTap: _showDebateInfo,
+                  onWatch: _showObserverView,
+                  onMore: () => _showCommunityMembers(),
+                ),
+                Expanded(
+                  child: ColoredBox(
+                    color: AppColors.surface,
+                    child: ListView(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      children: [
+                        for (final message in visibleMessages)
+                          if (message is CommunityOpinionMessage)
+                            _DiscussionGuide(
+                              message: message,
+                              onStatementTap: () =>
+                                  _showUserProfileByUserId(message.authorId),
+                            )
+                          else if (message is CommunityDebateStartedMessage)
+                            _CommunitySystemNotice(message: message.text)
+                          else if (message is CommunityDebateResultMessage)
+                            _CommunitySystemNotice(
+                              message: message.text,
+                              actionLabel: '토론결과보기',
+                              onAction: () =>
+                                  _showDebateResultPopup(message.debateId),
+                            )
+                          else if (message is CommunityDebateForfeitMessage)
+                            _CommunitySystemNotice(message: message.text)
+                          else if (message is CommunityDebateTimeoutMessage)
+                            _CommunitySystemNotice(message: message.text)
+                          else
+                            ChatMessageTile(
+                              message: message,
+                              isMine:
+                                  message.authorId == 'me' ||
+                                  message.authorId == currentMember?.id,
+                              avatar: _ChatAvatar(
+                                userName: message.authorName,
+                                imageUrl:
+                                    profileImageByMemberId[message.authorId],
+                                onTap: () =>
+                                    _showUserProfileByUserId(message.authorId),
+                              ),
+                              trailing:
+                                  widget.viewerRole ==
+                                          CommunityChatViewerRole.host &&
+                                      currentMember != null &&
+                                      message.authorId != currentMember.id
+                                  ? _NominateButton(
+                                      onTap: () => _confirmAndStartDebate(
+                                        message.authorId,
+                                        opponentName: message.authorName,
+                                      ),
+                                    )
+                                  : null,
+                              onRetry: () => _retryMessage(message),
+                            ),
+                      ],
+                    ),
+                  ),
+                ),
+                ChatComposer(
+                  controller: _messageController,
+                  enabled: hasMyOpinion,
+                  hintText: hasMyOpinion
+                      ? '관전방에서 대화하기'
+                      : '기조 발언 작성 후 채팅할 수 있습니다',
+                  maxLines: 5,
+                  onSend: _send,
+                  leading: [
+                    _CircleIconButton(
+                      icon: Icons.add_rounded,
+                      color: AppColors.accent,
+                      foreground: AppColors.background,
+                      onTap: () => _showOpinionSheet(initialOpinion: myOpinion),
+                    ),
+                    _CircleIconButton(
+                      icon: Icons.image_outlined,
+                      color: AppColors.surfaceElevated,
+                      foreground: AppColors.textSecondary,
+                      onTap: hasMyOpinion ? () {} : null,
+                    ),
                   ],
                 ),
-              ),
-            ),
-            ChatComposer(
-              controller: _messageController,
-              enabled: hasMyOpinion,
-              hintText: hasMyOpinion ? '관전방에서 대화하기' : '기조 발언 작성 후 채팅할 수 있습니다',
-              maxLines: 5,
-              onSend: _send,
-              leading: [
-                _CircleIconButton(
-                  icon: Icons.add_rounded,
-                  color: AppColors.accent,
-                  foreground: AppColors.background,
-                  onTap: widget.viewerRole == CommunityChatViewerRole.host
-                      ? null
-                      : _showOpinionSheet,
-                ),
-                _CircleIconButton(
-                  icon: Icons.image_outlined,
-                  color: AppColors.surfaceElevated,
-                  foreground: AppColors.textSecondary,
-                  onTap: hasMyOpinion ? () {} : null,
-                ),
               ],
+            ),
+            _CommunityToast(
+              visible: _showRejectedToast,
+              icon: Icons.block_rounded,
+              message: _rejectedToastMessage,
             ),
           ],
         ),
@@ -396,6 +412,20 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _showDebateRequestRejectedToast([
+    String message = '상대방이 토론 요청을 거부했어요.',
+  ]) {
+    _rejectedToastTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _rejectedToastMessage = message;
+      _showRejectedToast = true;
+    });
+    _rejectedToastTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showRejectedToast = false);
+    });
+  }
+
   Future<void> _confirmLeaveCommunity(BuildContext memberPanelContext) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -434,40 +464,53 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
   }
 
   void _showObserverView() {
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: '관전하기 닫기',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 180),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return _CommunityObserverDialog(
-          communityId: widget.community.id,
-          onClose: () => Navigator.pop(dialogContext),
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: SlideTransition(
-            position:
-                Tween<Offset>(
-                  begin: const Offset(0, -0.04),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
+    if (_observerDialogRoute?.isActive == true) return;
+    unawaited(
+      showGeneralDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: '관전하기 닫기',
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
+          _observerDialogRoute = ModalRoute.of(dialogContext);
+          return _CommunityObserverDialog(
+            communityId: widget.community.id,
+            onClose: _closeObserverView,
+          );
+        },
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: SlideTransition(
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, -0.04),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
                   ),
-                ),
-            child: child,
-          ),
-        );
-      },
+              child: child,
+            ),
+          );
+        },
+      ).whenComplete(() => _observerDialogRoute = null),
     );
   }
 
-  Future<void> _showOpinionSheet() async {
+  void _closeObserverView() {
+    final route = _observerDialogRoute;
+    if (route != null && route.isActive && mounted) {
+      Navigator.of(context, rootNavigator: true).removeRoute(route);
+    }
+  }
+
+  Future<void> _showOpinionSheet({
+    CommunityOpinionMessage? initialOpinion,
+  }) async {
     await showModalBottomSheet<CommunityOpinionDraft>(
       context: context,
       isScrollControlled: true,
@@ -475,9 +518,28 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withValues(alpha: 0.8),
       builder: (sheetContext) {
-        return CommunityOpinionSheet(onSubmit: _submitOpinion);
+        return CommunityOpinionSheet(
+          initialDraft: initialOpinion == null
+              ? null
+              : CommunityOpinionDraft(
+                  claim: initialOpinion.claim,
+                  reasons: initialOpinion.reasons,
+                ),
+          onSubmit: _submitOpinion,
+        );
       },
     );
+  }
+
+  CommunityOpinionMessage? _findMemberOpinion(
+    List<ChatMessage>? opinions,
+    String memberId,
+  ) {
+    if (opinions == null) return null;
+    for (final opinion in opinions.whereType<CommunityOpinionMessage>()) {
+      if (opinion.authorId == memberId) return opinion;
+    }
+    return null;
   }
 
   Future<void> _submitOpinion(CommunityOpinionDraft draft) async {
@@ -644,9 +706,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
 
     if (event.type == CommunityChatEventType.debateRequestRejected) {
       _closeDebateRequestWaiting(event.invitationId);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('상대방이 토론 요청을 거부했어요.')));
+      _showDebateRequestRejectedToast();
       return;
     }
 
@@ -655,11 +715,13 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
         _closeDebateInvitation(event.invitationId!);
       } else if (_visibleOutgoingDebateInvitationId == event.invitationId) {
         _closeDebateRequestWaiting(event.invitationId);
+        _showDebateRequestRejectedToast('상대방이 응답하지 않아 토론 요청이 거부되었어요.');
       }
       return;
     }
 
     if (event.type == CommunityChatEventType.debateEnded) {
+      _closeObserverView();
       ref.invalidate(activeCommunityDebateProvider(widget.community.id));
       return;
     }
@@ -913,6 +975,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
     timeout = Timer(remaining, () {
       if (_visibleOutgoingDebateInvitationId != invitation.id) return;
       _closeDebateRequestWaiting(invitation.id);
+      _showDebateRequestRejectedToast('상대방이 응답하지 않아 토론 요청이 거부되었어요.');
     });
     await dialogFuture;
     timeout.cancel();
@@ -951,6 +1014,7 @@ class _CommunityChatScreenState extends ConsumerState<CommunityChatScreen> {
         description: '토론방에 입장하시겠습니까?\n5초 안에 응답하지 않으면 자동으로 거부됩니다.',
         cancelLabel: '거부',
         confirmLabel: '확인',
+        descriptionFontSize: 15,
         onCancel: () => _closeDebateInvitation(invitation.id, false),
         onConfirm: () => _closeDebateInvitation(invitation.id, true),
       ),
@@ -1220,6 +1284,8 @@ class _CommunityObserverDialogState
         final event = next.asData?.value;
         if (event?.type == DebateChatRealtimeEventType.turnFinalized) {
           ref.invalidate(finalizedDebateTurnsProvider(debateId));
+        } else if (event?.type == DebateChatRealtimeEventType.debateEnded) {
+          widget.onClose();
         }
       },
     );
@@ -1302,7 +1368,6 @@ class _CommunityObserverDialogState
         dislikes: turn.dislikeCount,
         isHost: isSideA,
         avatarUrl: speaker.profileImageUrl,
-        avatarAsset: isSideA ? AppAssets.avatarBlue : AppAssets.avatarRed,
       );
     }).toList();
   }
@@ -1443,7 +1508,8 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
                           name:
                               activeDebate?.sideASpeaker.displayName ??
                               widget.community.host.name,
-                          avatarAsset: AppAssets.avatarBlue,
+                          profileImageUrl:
+                              activeDebate?.sideASpeaker.profileImageUrl,
                           active: true,
                         ),
                       ),
@@ -1465,7 +1531,9 @@ class _WatchRoomHeaderState extends State<_WatchRoomHeader> {
                           name: hasOpponent
                               ? activeDebate.sideBSpeaker.displayName
                               : '토론 상대 찾는 중...',
-                          avatarAsset: hasOpponent ? AppAssets.avatarRed : null,
+                          profileImageUrl: hasOpponent
+                              ? activeDebate.sideBSpeaker.profileImageUrl
+                              : null,
                           active: hasOpponent,
                         ),
                       ),
@@ -1634,15 +1702,16 @@ class _DebaterPreview extends StatelessWidget {
   const _DebaterPreview({
     required this.name,
     required this.active,
-    this.avatarAsset,
+    this.profileImageUrl,
   });
 
   final String name;
   final bool active;
-  final String? avatarAsset;
+  final String? profileImageUrl;
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = profileImageUrl?.trim();
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1654,9 +1723,19 @@ class _DebaterPreview extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           clipBehavior: Clip.antiAlias,
-          child: active && avatarAsset != null
-              ? Image.asset(avatarAsset!, fit: BoxFit.cover)
-              : const SizedBox.shrink(),
+          child: !active
+              ? const SizedBox.shrink()
+              : imageUrl == null || imageUrl.isEmpty
+              ? _ChatAvatarFallback(userName: name)
+              : Image.network(
+                  imageUrl,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  errorBuilder: (_, _, _) =>
+                      _ChatAvatarFallback(userName: name),
+                ),
         ),
         const SizedBox(height: 5),
         Text(
@@ -1680,13 +1759,11 @@ class _ChatAvatar extends StatelessWidget {
   const _ChatAvatar({
     required this.userName,
     required this.imageUrl,
-    required this.accent,
     required this.onTap,
   });
 
   final String userName;
   final String? imageUrl;
-  final bool accent;
   final VoidCallback onTap;
 
   @override
@@ -1700,12 +1777,12 @@ class _ChatAvatar extends StatelessWidget {
           width: 36,
           height: 36,
           child: normalizedUrl == null || normalizedUrl.isEmpty
-              ? _ChatAvatarFallback(userName: userName, accent: accent)
+              ? _ChatAvatarFallback(userName: userName)
               : Image.network(
                   normalizedUrl,
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) =>
-                      _ChatAvatarFallback(userName: userName, accent: accent),
+                      _ChatAvatarFallback(userName: userName),
                 ),
         ),
       ),
@@ -1714,30 +1791,20 @@ class _ChatAvatar extends StatelessWidget {
 }
 
 class _ChatAvatarFallback extends StatelessWidget {
-  const _ChatAvatarFallback({required this.userName, required this.accent});
+  const _ChatAvatarFallback({required this.userName});
 
   final String userName;
-  final bool accent;
 
   @override
   Widget build(BuildContext context) {
     final normalizedName = userName.trim();
     return Container(
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6E7E8),
-        gradient: accent
-            ? const RadialGradient(
-                center: Alignment(0.2, 0.2),
-                radius: 0.9,
-                colors: [Color(0xFFFE7D34), Color(0xFFE6E7E8)],
-              )
-            : null,
-      ),
+      color: AppColors.primarySoft,
       child: Text(
         normalizedName.isEmpty ? '?' : normalizedName.characters.first,
         style: const TextStyle(
-          color: AppColors.textSubtle,
+          color: AppColors.primary,
           fontSize: 15,
           fontWeight: FontWeight.w600,
         ),
@@ -1929,6 +1996,72 @@ class _CircleIconButton extends StatelessWidget {
           icon,
           color: onTap == null ? AppColors.textMuted : foreground,
           size: 23,
+        ),
+      ),
+    );
+  }
+}
+
+class _CommunityToast extends StatelessWidget {
+  const _CommunityToast({
+    required this.visible,
+    required this.icon,
+    required this.message,
+  });
+
+  final bool visible;
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomOffset = 134 + MediaQuery.paddingOf(context).bottom;
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: bottomOffset,
+      child: IgnorePointer(
+        child: AnimatedSlide(
+          offset: visible ? Offset.zero : const Offset(0, 0.16),
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          child: AnimatedOpacity(
+            opacity: visible ? 1 : 0,
+            duration: const Duration(milliseconds: 180),
+            child: Center(
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.24),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 18, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

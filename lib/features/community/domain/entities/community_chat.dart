@@ -76,6 +76,8 @@ class CommunityOpinionNotice {
     required this.createdAt,
     required this.claim,
     required this.reasons,
+    this.action = 'CREATED',
+    this.updatedAt,
   });
 
   final String id;
@@ -85,6 +87,8 @@ class CommunityOpinionNotice {
   final DateTime createdAt;
   final String claim;
   final List<String> reasons;
+  final String action;
+  final DateTime? updatedAt;
 }
 
 class CommunityChatEvent {

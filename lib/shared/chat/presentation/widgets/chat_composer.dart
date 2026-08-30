@@ -130,6 +130,7 @@ class _ChatComposerState extends State<ChatComposer> {
                             counterText: '',
                             isCollapsed: true,
                             hintText: widget.hintText,
+                            hintMaxLines: 1,
                             hintStyle: const TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 14,

@@ -8,6 +8,7 @@ class HeimdallLabeledTextField extends StatelessWidget {
     required this.hintText,
     this.controller,
     this.active = false,
+    this.minLines = 1,
     this.maxLines = 1,
     this.validator,
     super.key,
@@ -17,6 +18,7 @@ class HeimdallLabeledTextField extends StatelessWidget {
   final String hintText;
   final TextEditingController? controller;
   final bool active;
+  final int minLines;
   final int maxLines;
   final FormFieldValidator<String>? validator;
 
@@ -50,6 +52,7 @@ class HeimdallLabeledTextField extends StatelessWidget {
         const SizedBox(height: 16),
         TextFormField(
           controller: controller,
+          minLines: minLines,
           maxLines: maxLines,
           validator: validator,
           style: const TextStyle(

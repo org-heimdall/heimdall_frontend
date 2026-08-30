@@ -66,102 +66,110 @@ class _CreateCommunityScreenState extends ConsumerState<CreateCommunityScreen> {
           ),
         ),
       ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 40, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _RequiredSectionLabel('토론 테마'),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 16,
-                      children: CommunityCategory.values
-                          .where(
-                            (category) => category != CommunityCategory.all,
-                          )
-                          .map(
-                            (category) => HeimdallTab(
-                              label: category.label,
-                              selected: _category == category,
-                              variant: HeimdallTabVariant.outline,
-                              onTap: () => setState(() => _category = category),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 64),
-                    HeimdallLabeledTextField(
-                      controller: _topicController,
-                      label: '토론 주제 *',
-                      hintText: '토론하고자 하는 주제를 작성해주세요.',
-                      validator: _required('토론 주제를 입력하세요.'),
-                    ),
-                    const SizedBox(height: 64),
-                    HeimdallLabeledTextField(
-                      controller: _descriptionController,
-                      label: '토론 설명',
-                      hintText: '토론 설명을 작성해주세요.',
-                    ),
-                    const SizedBox(height: 64),
-                    const _RequiredSectionLabel('토론 라운드 개수'),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '참여자의 모든 턴이 끝나면 하나의 라운드가 완료됩니다.\n각 턴은 3분 동안 진행됩니다.',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 16,
-                        height: 1.5,
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 40, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _RequiredSectionLabel('토론 테마'),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 16,
+                        children: CommunityCategory.values
+                            .where(
+                              (category) => category != CommunityCategory.all,
+                            )
+                            .map(
+                              (category) => HeimdallTab(
+                                label: category.label,
+                                selected: _category == category,
+                                variant: HeimdallTabVariant.outline,
+                                onTap: () =>
+                                    setState(() => _category = category),
+                              ),
+                            )
+                            .toList(),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    _RoundSelector(
-                      rounds: _rounds,
-                      onIncrement: () => setState(() {
-                        if (_rounds < 9) {
-                          _rounds += 1;
-                        }
-                      }),
-                      onDecrement: () => setState(() {
-                        if (_rounds > 1) {
-                          _rounds -= 1;
-                        }
-                      }),
-                    ),
-                    const SizedBox(height: 64),
-                    HeimdallLabeledTextField(
-                      controller: _claimController,
-                      label: '나의 주장 *',
-                      hintText: '토론 주제에 대한 나의 주장을 한 줄 요약해주세요.',
-                      validator: _required('나의 주장을 입력하세요.'),
-                    ),
-                    const SizedBox(height: 64),
-                    const _SectionLabel('근거'),
-                    const SizedBox(height: 16),
-                    for (var i = 0; i < _reasonControllers.length; i++) ...[
-                      _ReasonField(
-                        index: i + 1,
-                        controller: _reasonControllers[i],
-                        validator: i == 0 ? _required('근거를 입력하세요.') : null,
+                      const SizedBox(height: 64),
+                      HeimdallLabeledTextField(
+                        controller: _topicController,
+                        label: '토론 주제 *',
+                        hintText: '토론하고자 하는 주제를 작성해주세요.',
+                        maxLines: 3,
+                        validator: _required('토론 주제를 입력하세요.'),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 64),
+                      HeimdallLabeledTextField(
+                        controller: _descriptionController,
+                        label: '토론 설명',
+                        hintText: '토론 설명을 작성해주세요.',
+                        maxLines: 5,
+                      ),
+                      const SizedBox(height: 64),
+                      const _RequiredSectionLabel('토론 라운드 개수'),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '참여자의 모든 턴이 끝나면 하나의 라운드가 완료됩니다.\n각 턴은 3분 동안 진행됩니다.',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 16,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _RoundSelector(
+                        rounds: _rounds,
+                        onIncrement: () => setState(() {
+                          if (_rounds < 9) {
+                            _rounds += 1;
+                          }
+                        }),
+                        onDecrement: () => setState(() {
+                          if (_rounds > 1) {
+                            _rounds -= 1;
+                          }
+                        }),
+                      ),
+                      const SizedBox(height: 64),
+                      HeimdallLabeledTextField(
+                        controller: _claimController,
+                        label: '나의 주장 *',
+                        hintText: '주제에 대한 나의 주장을 한 줄 요약해주세요.',
+                        maxLines: 3,
+                        validator: _required('나의 주장을 입력하세요.'),
+                      ),
+                      const SizedBox(height: 64),
+                      const _SectionLabel('근거'),
+                      const SizedBox(height: 16),
+                      for (var i = 0; i < _reasonControllers.length; i++) ...[
+                        _ReasonField(
+                          index: i + 1,
+                          controller: _reasonControllers[i],
+                          validator: i == 0 ? _required('근거를 입력하세요.') : null,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      _AddReasonButton(
+                        onTap: () => setState(() {
+                          _reasonControllers.add(TextEditingController());
+                        }),
+                      ),
                     ],
-                    _AddReasonButton(
-                      onTap: () => setState(() {
-                        _reasonControllers.add(TextEditingController());
-                      }),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 132),
-            ],
+                const SizedBox(height: 132),
+              ],
+            ),
           ),
         ),
       ),
