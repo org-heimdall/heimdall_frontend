@@ -2,6 +2,8 @@
 
 이 문서는 커뮤니티 채팅 개발 과정에서 중복 이벤트 처리, 재실행/재연결 시 데이터 정합성, 멱등성을 고려한 로직을 코드 기준으로 정리한다.
 
+> 현재 백엔드 기준 갱신본: 메시지 ACK(`community.message.ack`)와 의견 ACK(`community.opinion.ack`)이 제공되며, 연결 직후 최근 메시지/의견 replay가 수행된다.
+
 ## Message Identity
 
 채팅 메시지는 두 종류의 식별자를 가진다.
@@ -94,15 +96,16 @@
 
 ## Server Push Merge
 
-서버 이벤트는 `_mergeRealtimeEvent`에서 타입별로 처리하고, 메시지 생성/수정/기조발언 알림은 `_upsertMessage`로 합친다.
+서버 이벤트는 `_mergeRealtimeEvent`에서 타입별로 처리하고, 메시지 생성과 의견/기조발언 알림은 `_upsertMessage`로 합친다. 메시지 저장 ACK는 command 대기 상태를 해제하고, `message.created`는 다른 연결의 타임라인에 반영한다.
 
 관련 코드:
 
 - `_mergeRealtimeEvent`
 - `_upsertMessage`
+- `CommunityChatEventType.messageAcknowledged`
 - `CommunityChatEventType.messageCreated`
-- `CommunityChatEventType.messageUpdated`
-- `CommunityChatEventType.openingStatementCreated`
+- `CommunityChatEventType.opinionSubmitted`
+- `CommunityChatEventType.opinionAcknowledged`
 
 중복 방지 순서:
 
@@ -118,21 +121,6 @@ pending timeout 정리:
 - 같은 `clientMessageId`의 서버 push가 오면 `_cancelPendingTimeout`으로 실패 전환 예약을 취소한다.
 - 서버 push 메시지는 pending 메시지를 교체하므로 `deliveryStatus`도 서버가 준 확정 상태로 바뀐다.
 - timeout이 먼저 실행되어 failed가 된 뒤 같은 `clientMessageId`의 서버 push가 늦게 도착해도 `_upsertMessage`가 같은 메시지로 찾아 교체한다.
-
-## Delete Event Handling
-
-삭제 이벤트는 서버 메시지 ID 기준으로 제거한다.
-
-관련 코드:
-
-- `_mergeRealtimeEvent`
-- `CommunityChatEventType.messageDeleted`
-- `_messages.removeWhere((item) => item.id == message.id)`
-
-정합성 포인트:
-
-- 서버가 삭제한 메시지와 같은 `id`를 가진 로컬 메시지만 제거한다.
-- 다른 클라이언트 pending 메시지나 unrelated 메시지는 건드리지 않는다.
 
 ## Time Ordering
 
@@ -247,16 +235,14 @@ UI/UX 정합성:
 - 새 전송은 새 `clientMessageId`를 가진다.
 - 백엔드에 `clientMessageId` 저장 여부 확인 API가 추가되면 재전송 전에 기존 `clientMessageId`가 이미 DB에 저장됐는지 확인하는 단계가 들어가는 것이 더 안전하다.
 
-## Current Gaps
+## Current Gaps (최신 백엔드 기준)
 
 아직 완전한 서버 정합성을 보장하려면 아래가 추가로 필요하다.
 
 - 재연결 후 `lastEventId` 또는 `lastMessageId` 기준 missed event 재동기화
 - WebSocket heartbeat/ping-pong
 - 인증 토큰 만료 시 재인증
-- 서버 ack 이벤트 명세
-- 재전송 전 `clientMessageId` 저장 여부 확인 API
-- 메시지 삭제를 실제 삭제 대신 tombstone 상태로 보여줄지 정책 결정
-- `message.updated`, `message.deleted` payload parser 보강
+- 인증 토큰 만료 시 WebSocket 재인증
+- 재연결 전후 누락 이벤트를 위한 `lastEventId`/`lastMessageId` reconcile API
 
 현재 구현은 프론트 화면 상태에서 중복 추가를 막고, optimistic 메시지와 서버 push 메시지를 합치기 위한 1차 정합성 장치까지 포함한다.
