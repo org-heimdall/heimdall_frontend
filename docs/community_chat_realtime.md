@@ -15,9 +15,9 @@
 2. 화면은 `clientMessageId`를 만들고 pending 메시지를 즉시 추가한다.
 3. pending 메시지에 대한 10초 timeout timer를 시작한다.
 4. `sendCommunityChatMessageProvider(communityId).notifier.send(...)`가 WebSocket command를 서버에 전송한다.
-5. 서버가 DB에 저장한 뒤 `message.created` event를 push한다.
-6. 화면은 같은 `clientMessageId`를 가진 pending 메시지를 서버가 발급한 메시지 ID를 가진 sent 메시지로 교체한다.
-7. 같은 `clientMessageId`의 push가 10초 안에 오면 timeout timer를 취소한다.
+5. 서버가 DB에 저장한 뒤 송신자에게 `community.message.ack`를, 다른 연결에 `message.created`를 push한다.
+6. 화면은 ACK 또는 created event의 `clientMessageId`로 pending 메시지를 서버가 발급한 메시지로 교체한다.
+7. 같은 `clientMessageId`의 ACK/created event가 오면 timeout timer를 취소한다.
 8. command 전송이 실패하거나 timeout 안에 push가 오지 않으면 pending 메시지를 failed로 바꾼다.
 9. failed 메시지는 `전송 실패 · 다시 보내기` 액션으로 새 `clientMessageId`를 만들어 재전송할 수 있다.
 10. 내 메시지의 push가 나중에 도착해도 `clientMessageId` 또는 서버가 발급한 메시지 ID 기준으로 중복 추가하지 않는다.
@@ -54,7 +54,6 @@
     "id": "message-123",
     "communityId": "room-2",
     "clientMessageId": "client-123",
-    "authorId": "user-1",
     "authorName": "Username",
     "text": "hello",
     "createdAt": "2026-06-23T10:00:00.000Z"
@@ -64,41 +63,46 @@
 
 여기서 `message.id`는 서버 자체의 ID가 아니라, 서버가 DB에 메시지를 저장하면서 발급한 메시지 ID다.
 
-## Opening Statement Event Shape
+## Opinion Event Shape
 
-기조발언 알림도 채팅 타임라인 안의 시스템 메시지로 들어간다.
+기조발언 저장 결과와 변경 알림은 의견 이벤트로 전달된다.
 
 ```json
 {
   "id": "event-456",
-  "type": "opening_statement.created",
+  "type": "opinion.submitted",
   "communityId": "room-2",
-  "notice": {
+  "opinion": {
+    "id": "opinion-123",
     "authorId": "user-3",
     "authorName": "Username3",
-    "createdAt": "2026-06-23T10:02:00.000Z"
+    "claim": "주장",
+    "reasons": ["근거"],
+    "createdAt": "2026-06-23T10:02:00.000Z",
+    "updatedAt": "2026-06-23T10:02:00.000Z"
   }
 }
 ```
 
-프론트는 이 이벤트를 `CommunityChatMessageType.openingStatementNotice` 메시지로 변환한다. 그래서 일반 메시지와 같은 `createdAt` 정렬 규칙을 따른다.
+프론트는 이 이벤트를 의견/기조발언 알림으로 변환해 일반 채팅과 같은 `createdAt` 정렬 규칙을 따른다.
 
 ## Required Event Types
 
 ### Client Commands
 
 - `message.send`: 채팅 메시지 전송
-- `typing.started`: 입력 중 상태 시작
-- `typing.stopped`: 입력 중 상태 종료
-- `opening_statement.submit`: 기조 발언 제출
+- `opinion.submit`: 커뮤니티 의견/기조발언 제출
 
 ### Server Events
 
 - `message.created`: 새 채팅 메시지
-- `message.updated`: 서버 보정 또는 상태 변경
-- `message.deleted`: 삭제 또는 숨김
-- `opening_statement.created`: 기조 발언 알림
-- `connection.restored`: 재연결 후 서버 기준 상태 동기화 트리거
+- `community.message.ack`: 메시지 저장 ACK
+- `community.opinion.ack`: 의견 저장 ACK
+- `opinion.submitted`: 의견 변경 알림
+- `community.member.debate-intent.changed`: 토론 의사 변경
+- `debate.requested`, `debate.request.rejected`, `debate.request.expired`, `debate.started`: 토론 초대 lifecycle
+- `debate.ended`: 토론 종료
+- `error`: command 처리 오류
 
 ## Client Responsibilities
 
@@ -123,12 +127,10 @@
   - 같은 `clientMessageId`가 있으면 교체
   - 같은 서버 발급 메시지 `id`가 있으면 교체
   - 둘 다 없으면 추가
-- `message.updated`
-  - 같은 서버 발급 메시지 `id`를 교체
-- `message.deleted`
-  - 같은 서버 발급 메시지 `id`를 제거하거나 deleted 상태로 표시
-- `opening_statement.created`
-  - 시스템 메시지로 변환해서 일반 채팅과 같은 타임라인에 반영
+- `opinion.submitted`
+  - 같은 의견 `id`를 기준으로 교체 또는 추가
+- `community.message.ack` / `community.opinion.ack`
+  - command 대기 상태를 해제하고 저장 결과를 반영
 
 ## Pending Timeout and Retry
 
@@ -147,7 +149,7 @@
 
 - 내가 보낸 메시지: 프론트 optimistic 메시지로 먼저 보이지만, 최종 확정 데이터는 서버 push다.
 - 다른 사용자의 메시지: 프론트가 직접 만들지 않고 항상 서버 push로 들어온다.
-- 초기 진입/재접속 이후 누락 메시지: 현재 문서 기준으로는 별도 동기화 API가 필요하다.
+- 초기 진입/재접속: 서버가 최근 메시지(최대 50개)와 의견 목록을 연결 직후 replay한다.
 
 ## Current Implementation
 
@@ -189,7 +191,7 @@ message.created push timeout
 -> pending을 failed로 변경
 ```
 
-실행 시 `WEBSOCKET_BASE_URL`을 dart-define으로 주입한다.
+실행 시 커뮤니티 WebSocket은 `WEBSOCKET_BASE_URL`, 토론 WebSocket은 `DEBATE_WEBSOCKET_BASE_URL`을 dart-define으로 주입한다.
 
 ```bash
 flutter run --dart-define=WEBSOCKET_BASE_URL=wss://api.example.com
@@ -207,13 +209,8 @@ ws://localhost:8080/communities/{communityId}/chat
 
 화면과 provider 계약은 유지한다.
 
-## Remaining Backend Contracts
+## 현재 백엔드 연동 상태
 
-아직 서버 스펙 확정이 필요한 부분:
-
-- `message.send` command에 대한 ack 이벤트를 둘지 여부
-- 재연결 후 `lastMessageId` 또는 `lastEventId` 기준 누락 이벤트 동기화
-- `clientMessageId` 저장 여부 확인 API
-- heartbeat/ping-pong
-- 인증 토큰 전달 방식
-- 메시지 삭제를 hard delete로 볼지 tombstone event로 볼지
+- `message.send`와 `opinion.submit`은 각각 ACK 이벤트를 사용한다.
+- 연결 시 커뮤니티 최근 메시지/의견 replay가 수행된다. 별도 `lastEventId` reconcile API는 없다.
+- 인증은 WebSocket handshake의 `Authorization: Bearer <accessToken>` header다.
