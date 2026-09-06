@@ -53,7 +53,7 @@ Validation highlights: email 형식/최대 320자, password 최소 8자(로그�
 | POST | `/members` | `{ displayName, profileImageUrl? }` | `Member` (201) |
 | GET | `/members` | — | `Member[]` (200) |
 | GET | `/members/:memberId` | — | `Member` (200) |
-| PATCH | `/members/:memberId` | `{ displayName?; profileImageUrl?: string|null }` | `Member` (200) |
+| PATCH | `/members/:memberId` | `{ displayName?; profileImageUrl?: string\|null }` | `Member` (200) |
 | DELETE | `/members/:memberId` | — | empty (204) |
 
 PATCH/DELETE는 토큰의 사용자와 `memberId`가 같아야 한다. displayName 최대 100자, profileImageUrl 최대 1000자.
