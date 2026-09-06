@@ -189,7 +189,7 @@ interface DebateTurnMessageAppendResult { status: 'APPENDED'|'DUPLICATE'; messag
 | `debate.turn.message.ack` | `{ debateId, commandId, clientMessageId?, status, message }` |
 | `debate.turn.message.created` | `{ debateId, message }` |
 | `debate.turn.finalized` | `{ debateId, turn }` |
-| `debate.processing.stage` | `{ debateId, stage: 'ANALYZER'|'FACT_CHECK'|'JUDGE', status: 'STARTED'|'RETRYING'|'COMPLETED'|'FAILED', attempt, message, occurredAt }` |
+| `debate.processing.stage` | `{ debateId, stage: 'ANALYZER'\|'FACT_CHECK'\|'JUDGE', status: 'STARTED'\|'RETRYING'\|'COMPLETED'\|'FAILED', attempt, message, occurredAt }` |
 | `debate.ended` | `{ communityId, debateId, status, reason }` |
 | `error` | `{ debateId?, commandId?, code, message }` |
 
@@ -205,7 +205,7 @@ interface DebateTurnMessageAppendResult { status: 'APPENDED'|'DUPLICATE'; messag
 | type | payload |
 |---|---|
 | `message.created` | `{ communityId, message: CommunityMessage }` |
-| `community.message.ack` | `{ communityId, commandId, clientMessageId, status: 'STORED'|'DUPLICATE', message }` |
+| `community.message.ack` | `{ communityId, commandId, clientMessageId, status: 'STORED'\|'DUPLICATE', message }` |
 | `opinion.submitted` | `{ communityId, opinion: CommunityOpinion }` |
 | `community.opinion.ack` | `{ communityId, commandId, status: 'STORED', opinion }` |
 | `community.member.debate-intent.changed` | `{ communityId, member: CommunityMember }` |
