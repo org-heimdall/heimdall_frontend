@@ -59,6 +59,16 @@ Analyzer·FactCheck·Judge 작업의 pending/processing/completed/failed 및 rec
 - 재접속 시 토론 snapshot, 커뮤니티 최근 메시지/의견을 replay한다.
 - event/entity ID를 사용해 replay와 실시간 이벤트의 중복 반영을 방지한다.
 
+#### ACK 및 broadcast 처리
+
+- command `id`를 ACK의 `commandId`에 연결하고, 요청 socket에만 ACK를 전송한다.
+- 커뮤니티 메시지는 `(community_id, client_message_id)` unique 제약 또는 조건부 insert로 멱등성을 보장한다.
+- 이미 저장된 메시지의 재전송은 `DUPLICATE` ACK만 반환하며, 새 `message.created` broadcast를 만들지 않는다.
+- 의견은 `clientMessageId` 멱등성 대상이 아니므로 저장 결과에 따라 ACK를 보내고, 변경 사항만 다른 연결자에게 broadcast한다.
+- 토론 draft도 command/message 식별자와 DB 조건부 갱신을 이용해 중복 append를 방지한다.
+- ACK 이후 broadcast 순서를 고정하고, reconnect replay에서는 event/entity ID로 실시간 이벤트와의 중복을 제거한다.
+- `communityId`·`debateId`는 WebSocket URL에서 확정하고, 클라이언트가 보낸 값은 권한·room 검증의 기준으로 사용하지 않는다.
+
 ### AI 파이프라인
 
 - Analyzer·FactCheck·Judge의 시작/재시도/완료/실패를 `debate.processing.stage`로 broadcast한다.

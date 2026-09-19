@@ -15,7 +15,6 @@ class WebSocketCommunityChatRepository implements CommunityChatRepository {
         communityId: request.communityId,
         type: CommunityChatCommandType.messageSend,
         clientMessageId: request.clientMessageId,
-        sentAt: DateTime.now(),
         payload: {'text': request.text},
       ),
     );
@@ -29,7 +28,6 @@ class WebSocketCommunityChatRepository implements CommunityChatRepository {
         id: commandId,
         communityId: request.communityId,
         type: CommunityChatCommandType.opinionSubmit,
-        sentAt: DateTime.now(),
         payload: {'claim': request.claim, 'reasons': request.reasons},
       ),
     );
