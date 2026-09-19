@@ -2,6 +2,8 @@
 
 이 문서는 [프론트엔드 API 계약](./frontend-api-contract.md)을 만족시키기 위한 백엔드 내부 설계와 현재 구현 예시다. 아래 내용은 프론트가 직접 의존하는 wire contract가 아니며, 내부 저장소·큐·동시성 구현은 변경할 수 있다.
 
+> 외부 계약 보강 항목(커뮤니티 종료 상태 복귀, AI task 복구, 토큰 usage 로깅)은 [backend-followup-requirements.md](./backend-followup-requirements.md)를 기준으로 구현한다.
+
 ## 현재 구조 참고 이미지
 
 아래 이미지는 저장소 `readme_img`에 있는 현재 구현 기준 다이어그램이다. API 계약 자체를 대체하지 않으며, 내부 흐름을 빠르게 파악하기 위한 참고 자료다.
