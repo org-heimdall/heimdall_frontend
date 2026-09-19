@@ -105,9 +105,7 @@ class DebateChatCommandService {
     await _realtimeClient.send(debateId, {
       'id': commandId,
       'type': 'debate.turn.message.send',
-      'debateId': debateId,
       'clientMessageId': clientMessageId,
-      'sentAt': DateTime.now().toUtc().toIso8601String(),
       'payload': _payload(context, content: text),
     });
   }
@@ -120,7 +118,6 @@ class DebateChatCommandService {
     await _realtimeClient.send(debateId, {
       'id': commandId,
       'type': 'debate.turn.finalize',
-      'debateId': debateId,
       'payload': _payload(context),
     });
   }

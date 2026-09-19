@@ -174,10 +174,35 @@ interface DebateTurnMessageAppendResult { status: 'APPENDED'|'DUPLICATE'; messag
 - 토론 채팅: `ws(s)://<host>:<port>/debates/:debateId/chat`
 - 커뮤니티 채팅: `ws(s)://<host>:<port>/communities/:communityId/chat`
 
+### WebSocket ACK 및 중복 처리 규칙
+
+- client command의 `id`는 클라이언트가 생성하며, 서버 ACK의 `commandId`로 그대로 반환한다.
+- room 식별자는 연결 경로에 있으므로 command JSON에는 `communityId` 또는 `debateId`를 넣지 않는다.
+- 서버 저장 시각은 클라이언트 시각이 아니라 서버 시각(`createdAt`)을 사용한다. `sentAt`은 wire contract에 포함하지 않는다.
+- ACK는 command를 보낸 연결에만 전달한다. 처리 오류는 동일한 `commandId`를 가진 `error` 이벤트로 전달한다.
+- 동일한 `clientMessageId`가 재전송되면 새 메시지를 만들지 않고 `DUPLICATE` ACK를 반환한다.
+- 중복 메시지에는 새 `message.created` 또는 `debate.turn.message.created` 이벤트를 broadcast하지 않는다.
+- 의견 제출은 `clientMessageId` 중복 제거 대상이 아니며, 재제출은 현재 의견 갱신으로 처리한다.
+
+### WebSocket server event wire format
+
+현재 계약의 server event는 `type`과 이벤트별 데이터를 동일한 최상위 객체에 둔다. 별도의 `{ type, payload }` 중첩 envelope는 사용하지 않는다.
+
+```json
+{
+  "type": "community.message.ack",
+  "communityId": "...",
+  "commandId": "...",
+  "clientMessageId": "...",
+  "status": "STORED",
+  "message": {}
+}
+```
+
 ### 토론 채팅 client command
 
 ```ts
-{ id: string; type: 'debate.turn.send'|'debate.turn.message.send'; clientMessageId?: string; payload: { speakerId: string; speakerSide: DebateSide; phase: DebatePhase; round: number; content: string }; sentAt?: string }
+{ id: string; type: 'debate.turn.send'|'debate.turn.message.send'; clientMessageId?: string; payload: { speakerId: string; speakerSide: DebateSide; phase: DebatePhase; round: number; content: string } }
 { id: string; type: 'debate.turn.finalize'; payload: { speakerId: string; speakerSide: DebateSide; phase: DebatePhase; round: number } }
 ```
 
@@ -200,6 +225,11 @@ interface DebateTurnMessageAppendResult { status: 'APPENDED'|'DUPLICATE'; messag
 { id: string; type: 'opinion.submit'; payload: { claim: string; reasons: string[] } }
 ```
 
+- `debate.turn.message.ack`와 `community.message.ack`는 송신자에게만 전달한다.
+- `debate.turn.message.created`와 `message.created`는 저장에 성공한 경우 다른 room 연결자에게 전달한다.
+- `debate.turn.finalized`는 토론 room 전체에 전달한다.
+- `community.opinion.ack`는 송신자에게, `opinion.submitted`는 다른 커뮤니티 room 연결자에게 전달한다.
+
 ### 커뮤니티 채팅 server event
 
 | type | payload |
@@ -218,6 +248,8 @@ interface DebateTurnMessageAppendResult { status: 'APPENDED'|'DUPLICATE'; messag
 ## 구현 참고 (API 계약 외)
 
 내부 구현 설계와 현재 구현 예시는 별도 문서로 분리했습니다: [backend-internal-design.md](./backend-internal-design.md). 이 문서는 REST/WebSocket 외부 계약만 정의하며, 백엔드 내부 저장소·큐·동시성·broadcast 구현은 별도 문서를 참고합니다.
+
+새 `heimdall_backend`와의 호환성 차이 및 수정 요구사항은 [heimdall-backend-compatibility-gaps.md](./heimdall-backend-compatibility-gaps.md)에 정리했습니다.
 
 ## 프론트 연동 검증 기준
 

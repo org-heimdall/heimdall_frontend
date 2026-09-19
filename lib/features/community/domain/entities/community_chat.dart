@@ -152,7 +152,6 @@ class CommunityChatCommand {
     required this.id,
     required this.communityId,
     required this.type,
-    required this.sentAt,
     this.clientMessageId,
     this.payload = const {},
   });
@@ -160,7 +159,6 @@ class CommunityChatCommand {
   final String id;
   final String communityId;
   final CommunityChatCommandType type;
-  final DateTime sentAt;
   final String? clientMessageId;
   final Map<String, Object?> payload;
 
@@ -168,10 +166,8 @@ class CommunityChatCommand {
     return {
       'id': id,
       'type': type.wireName,
-      'communityId': communityId,
       if (clientMessageId != null) 'clientMessageId': clientMessageId,
       'payload': payload,
-      'sentAt': sentAt.toIso8601String(),
     };
   }
 }
