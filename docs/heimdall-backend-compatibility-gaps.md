@@ -149,6 +149,53 @@ REST 경로가 같아도 필드명·nullability·enum이 다르면 프론트에�
    전체 목록을 반환하도록 계약을 바꾸거나, 프론트가 `page`/`size`를 전달하고 페이지를
    합치는 처리가 필요하다.
 
+5. **방장의 토론 의사 상태와 토론 시작 권한이 어긋난다.**
+   프론트의 토론 시작 화면은 현재 사용자가 방장이고 상대가 `OPEN_TO_DEBATE`이면
+   `토론하기`를 제공한다. 방장 자신의 `debateIntent`가 `PREPARING`인지 여부로 시작
+   버튼을 막지 않는다.
+
+   이 동작은 기존 `heimdall_ai/backend`의 `startCommunityDebate()`와도 일치한다.
+   기존 시작 로직은 방장 권한과 상대의 `OPEN_TO_DEBATE`만 확인하고, 방장 자신의
+   `debateIntent`는 시작 조건으로 검사하지 않았다. 따라서 방장이 `준비할래요`인
+   상태에서도 방장이 토론을 시작하고 상대를 초대할 수 있었다.
+
+   `준비할래요`는 해당 멤버가 현재 토론에 참여하지 못하거나 참여 의사가 없음을
+   알리는 상태이지, 커뮤니티 방장의 토론 시작 권한을 제거하는 상태가 아니다. 토론
+   시작권이 방장에게 있는 현재 UX에서는 방장이 `준비할래요`인 상태에서 상대를
+   초대하고 토론을 진행하는 것이 자연스럽다.
+
+   반면 새 `heimdall_backend`는 `start()`에서 방장과 상대 모두
+   `OPEN_TO_DEBATE`인지 검사한다. 방장이 `PREPARING`이면
+   `DEBATE_INVITATION.HOST_NOT_OPEN_TO_DEBATE`(409)를 반환하고, 프론트에는 현재
+   상세 오류 대신 `토론을 시작하지 못했습니다.`가 표시된다.
+
+   **수정 요구:** `POST /communities/:communityId/debates/start`에서는 방장 자신의
+   `debateIntent`를 시작 조건에서 제외한다. 방장 권한·커뮤니티 소속·상대의
+   `OPEN_TO_DEBATE` 검사는 유지한다. 초대 수락 시 상대방의 현재 참여 의사를 다시
+   확인하는 정책은 기존 동작과 별도로 유지한다.
+
+6. **토론 시작 후 10초 웜업 시간이 누락되어 있다.**
+   기존 백엔드는 초대 수락 후 첫 턴을 즉시 시작하지 않고, `startedAt`과 첫 턴의
+   시작 시각을 현재 시각보다 10초 뒤로 설정했다. 프론트는 이 미래 시각을 기준으로
+   카운트다운을 표시하고, 웜업 동안 입력창을 비활성화한다.
+
+   기존 프론트가 기대하는 웜업 UX는 다음과 같다.
+
+   - `토론자가 결정되었습니다.` 안내
+   - `N초 뒤, 비프로스트의 문이 열립니다.` 카운트다운
+   - `잠시 후 입론을 시작할 수 있습니다` placeholder
+   - 웜업 중 발언 입력·전송 비활성화
+
+   기존 `heimdall_ai/backend`는 `DEBATE_PREPARATION_DURATION_MS = 10 * 1000`과
+   `getDebateStartsAt()`으로 이 계약을 제공한다. 반면 새 `heimdall_backend`의
+   `DebateChatState.start()`는 `startedAt = now`로 즉시 시작하므로, 현재 프론트에서는
+   웜업 없이 첫 턴 시간이 바로 흐른다.
+
+   **수정 요구:** 초대 수락으로 토론을 시작할 때 첫 턴 시작 시각을 현재 시각보다
+   10초 뒤로 설정하고, `startedAt`, `currentTurnStartedAt`, `expiresAt` 계산이 이
+   지연을 일관되게 반영하도록 한다. 웜업 중에는 턴 제한 시간이 차감되지 않아야 하며,
+   재접속·복구 시에도 동일한 미래 시작 시각을 기준으로 남은 시간을 계산해야 한다.
+
 현재 위 네 항목 외에, 수정된 프론트 command JSON에서 새 백엔드 DTO에 없는 추가 필드는
 확인되지 않았다. `communityId`/`debateId`와 `sentAt`은 wire command에서 제거했고,
 room ID는 WebSocket URL 라우팅에만 사용한다.
@@ -165,3 +212,5 @@ room ID는 WebSocket URL 라우팅에만 사용한다.
 - [ ] `host.profileImageUrl` 응답 추가 또는 프론트 optional 처리
 - [ ] `messageType` enum 체계 통일
 - [ ] 커뮤니티 목록 pagination 계약 확정
+- [ ] 방장이 `PREPARING`이어도 상대가 `OPEN_TO_DEBATE`이면 토론 초대가 생성되는지 통합 테스트
+- [ ] 토론 시작 시 10초 웜업과 첫 턴 입력 잠금·카운트다운 통합 테스트
