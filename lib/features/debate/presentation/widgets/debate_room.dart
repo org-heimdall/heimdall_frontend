@@ -768,12 +768,12 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
     });
     final endMessage = switch (reason) {
       'TOTAL_TIME_EXPIRED' => '전체 토론 시간이 지나 토론이 종료되었습니다.',
-      'FORFEITED' => '상대방의 기권으로 토론이 종료되었습니다.',
+      'FORFEIT' || 'FORFEITED' => '상대방의 기권으로 토론이 종료되었습니다.',
       _ => '토론이 종료되었습니다.',
     };
     final endIcon = switch (reason) {
       'TOTAL_TIME_EXPIRED' => Icons.timer_off_rounded,
-      'FORFEITED' => Icons.person_off_rounded,
+      'FORFEIT' || 'FORFEITED' => Icons.person_off_rounded,
       _ => Icons.flag_rounded,
     };
     showDialog<void>(
