@@ -571,7 +571,19 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
         unawaited(_refreshTurnAfterFinalized());
         return;
       case DebateChatRealtimeEventType.debateEnded:
-        _handleDebateEnded(event.endReason);
+        // `DEBATE_FINALIZED` means that all turns are finished and the
+        // judging pipeline is about to start. It is not a terminal outcome,
+        // so keep the room in its processing state instead of showing the
+        // community-return dialog. Older backends may emit `COMPLETED` after
+        // publishing the result; that event is also handled as a result
+        // transition rather than as a failure/forfeit dialog.
+        if (event.status == 'DEBATE_FINALIZED') {
+          _startResultPolling();
+        } else if (event.status == 'COMPLETED') {
+          _openResult();
+        } else {
+          _handleDebateEnded(event.endReason);
+        }
         return;
       case DebateChatRealtimeEventType.processingStage:
         if (event.processingStage != null &&
