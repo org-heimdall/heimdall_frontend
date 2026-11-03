@@ -590,11 +590,11 @@ class _DebateRoomState extends ConsumerState<DebateRoom> {
             event.processingMessage != null) {
           _processingStage = event.processingStage;
           _syncProgressStep();
-          final isTerminal = event.processingStatus == 'COMPLETED' ||
-              event.processingStatus == 'FAILED';
-          final messageId = isTerminal
-              ? 'processing:${widget.debateId}:${event.processingStage}:result:${event.processingAttempt ?? DateTime.now().microsecondsSinceEpoch}'
-              : 'processing:${widget.debateId}:${event.processingStage}:active';
+          // Analyzer/FactCheck는 여러 task가 병렬로 실행된다. 호출마다 새
+          // 시스템 메시지를 만들면 타임라인이 작업 로그로 도배되므로 단계별
+          // 고정 ID 하나를 계속 갱신한다(중복 이벤트·재시도도 동일하게 흡수).
+          final messageId =
+              'processing:${widget.debateId}:${event.processingStage}';
           _timeline.upsert(
             ChatMessage(
               id: messageId,
